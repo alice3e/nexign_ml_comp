@@ -1,0 +1,10 @@
+model_id: "Qwen/Qwen2-VL-2B-Instruct" # Или PaliGemma, но Qwen сейчас топ для схем
+output_dir: "./checkpoints"
+max_seq_length: 512
+image_resolution: 512 # Важно для детальных схем
+train_batch_size: 1 # Для экономии памяти
+gradient_accumulation_steps: 4
+learning_rate: 2e-4
+lora_r: 16
+lora_alpha: 32
+num_epochs: 3
