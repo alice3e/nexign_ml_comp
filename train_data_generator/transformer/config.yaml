@@ -8,7 +8,7 @@ output_dir: "./output"         # Директория для результат�
 rendering:
   # Разрешение (длинная сторона)
   min_resolution: 1024
-  max_resolution: 2048
+  max_resolution: 3096
   
   # Цветовые темы
   themes:
@@ -19,43 +19,43 @@ rendering:
   # Вероятности выбора темы
   theme_weights:
     light: 0.5
-    dark: 0.3
+    dark: 0.2
     contrast: 0.2
 
 # Цветовые палитры для тем
 color_palettes:
   light:
-    background: ["#FFFFFF", "#F5F5F5", "#FAFAFA"]
-    task_fill: ["#E3F2FD", "#E8F5E9", "#FFF3E0", "#F3E5F5"]
-    task_stroke: ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2"]
+    background: ["#FFFFFF", "#F8F9FA"]
+    task_fill: ["#E3F2FD", "#E8F5E9", "#FFF3E0"]
+    task_stroke: ["#1976D2", "#388E3C", "#F57C00"]
     gateway_fill: ["#FFF9C4", "#FFE0B2"]
     gateway_stroke: ["#F57F17", "#E65100"]
     event_fill: ["#E1F5FE", "#F1F8E9"]
     event_stroke: ["#0277BD", "#558B2F"]
-    flow_stroke: ["#424242", "#616161"]
-    text_color: ["#212121", "#424242"]
+    flow_stroke: ["#212121", "#424242"]  # Темнее для лучшей видимости
+    text_color: ["#212121", "#000000"]
   
   dark:
-    background: ["#1E1E1E", "#2D2D2D", "#252525"]
-    task_fill: ["#1E3A5F", "#1B4332", "#4A2C2A", "#3E2C5F"]
-    task_stroke: ["#64B5F6", "#81C784", "#FFB74D", "#BA68C8"]
-    gateway_fill: ["#4A4A2C", "#4A3C2C"]
-    gateway_stroke: ["#FDD835", "#FFB300"]
-    event_fill: ["#1E4A5F", "#2C4A1E"]
-    event_stroke: ["#4FC3F7", "#9CCC65"]
-    flow_stroke: ["#BDBDBD", "#9E9E9E"]
-    text_color: ["#E0E0E0", "#BDBDBD"]
+    background: ["#2D2D2D", "#1E1E1E"]
+    task_fill: ["#37474F", "#455A64", "#546E7A"]
+    task_stroke: ["#90CAF9", "#A5D6A7", "#FFCC80"]
+    gateway_fill: ["#5D4037", "#6D4C41"]
+    gateway_stroke: ["#FFD54F", "#FFB74D"]
+    event_fill: ["#455A64", "#546E7A"]
+    event_stroke: ["#81D4FA", "#AED581"]
+    flow_stroke: ["#FFFFFF", "#E0E0E0"]  # Светлее для видимости на темном фоне
+    text_color: ["#FFFFFF", "#F5F5F5"]
   
   contrast:
-    background: ["#000000", "#FFFFFF"]
-    task_fill: ["#FFEB3B", "#00BCD4", "#FF5722", "#9C27B0"]
-    task_stroke: ["#000000", "#FFFFFF"]
-    gateway_fill: ["#FFC107", "#FF9800"]
-    gateway_stroke: ["#000000", "#FFFFFF"]
-    event_fill: ["#4CAF50", "#2196F3"]
-    event_stroke: ["#000000", "#FFFFFF"]
-    flow_stroke: ["#000000", "#FFFFFF"]
-    text_color: ["#000000", "#FFFFFF"]
+    background: ["#FFFFFF"]
+    task_fill: ["#E3F2FD", "#E8F5E9"]
+    task_stroke: ["#000000"]
+    gateway_fill: ["#FFF9C4"]
+    gateway_stroke: ["#000000"]
+    event_fill: ["#E1F5FE"]
+    event_stroke: ["#000000"]
+    flow_stroke: ["#000000"]
+    text_color: ["#000000"]
 
 # Настройки шрифтов
 # ВАЖНО: Рендерер автоматически ищет системные шрифты с поддержкой Unicode/кириллицы
@@ -67,31 +67,31 @@ fonts:
   available:
     - "System Default"  # Автоматический выбор системного шрифта
   
-  # Размеры шрифтов
-  task_name_size: [10, 12, 14]
-  gateway_name_size: [9, 10, 11]
-  event_name_size: [8, 9, 10]
-  flow_label_size: [8, 9, 10]
+  # Размеры шрифтов - увеличены для лучшей читаемости
+  task_name_size: [12, 14, 16]
+  gateway_name_size: [10, 11, 12]
+  event_name_size: [9, 10, 11]
+  flow_label_size: [9, 10, 11]
 
 # Настройки геометрии
 geometry:
-  # Толщина линий
-  task_stroke_width: [1.5, 2.0, 2.5]
-  gateway_stroke_width: [2.0, 2.5, 3.0]
-  event_stroke_width: [2.0, 2.5, 3.0]
-  flow_stroke_width: [1.0, 1.5, 2.0]
+  # Толщина линий - согласно BPMN стандарту
+  task_stroke_width: [2.0, 2.5]
+  gateway_stroke_width: [2.5, 3.0]
+  event_stroke_width: [2.5, 3.0]
+  flow_stroke_width: [1.5, 2.0, 2.5]  # Увеличено для лучшей видимости
   
-  # Скругление углов задач
-  task_corner_radius: [3, 5, 8]
+  # Скругление углов задач (BPMN стандарт - небольшое скругление)
+  task_corner_radius: [5, 8]
   
-  # Размеры стрелок
-  arrow_size: [8, 10, 12]
+  # Размеры стрелок - увеличены для видимости
+  arrow_size: [10, 12, 14]
   
-  # Отступы для текста
-  text_padding: [3, 5, 7]
+  # Отступы для текста - увеличены
+  text_padding: [5, 7, 10]
   
   # Межстрочный интервал
-  line_spacing: [1.0, 1.2, 1.5]
+  line_spacing: [1.2, 1.3, 1.4]
 
 # Настройки аугментации
 augmentation:
@@ -116,18 +116,18 @@ augmentation:
   # JPEG артефакты
   jpeg_artifacts:
     enabled: true
-    quality_range: [85, 95]
+    quality_range: [90, 99]
   
   # Гауссово размытие
   gaussian_blur:
-    enabled: true
-    kernel_size: [0, 1, 3]  # 0 = без размытия
+    enabled: false
+    kernel_size: [0, 1]  # 0 = без размытия
     sigma: [0.3, 0.5, 0.7]
   
   # Шум
   noise:
     enabled: true
-    noise_level: [0, 5, 10]  # стандартное отклонение
+    noise_level: [0, 2, 4]  # стандартное отклонение
   
   # Яркость и контраст
   brightness_contrast:

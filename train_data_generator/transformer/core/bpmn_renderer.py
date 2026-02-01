@@ -132,10 +132,10 @@ class BPMNRenderer:
         elif node_type == 'ParallelGateway':
             self._draw_parallel_gateway(draw, x, y, width, height, node['name'])
     
-    def _draw_task(self, draw: ImageDraw.ImageDraw, x: float, y: float, 
+    def _draw_task(self, draw: ImageDraw.ImageDraw, x: float, y: float,
                    width: float, height: float, name: str):
         """Рендеринг Task."""
-        # Прямоугольник с скругленными углами
+        # Прямоугольник с скругленными углами (BPMN стандарт)
         radius = self.geometry['task_corner_radius']
         
         fill_color = self._hex_to_rgb(self.colors['task_fill'])
@@ -151,10 +151,10 @@ class BPMNRenderer:
             width=stroke_width
         )
         
-        # Текст
+        # Текст с переносом строк и масштабированием
         if name:
-            self._draw_text_centered(draw, name, x, y, width, height, 
-                                    self.font_task, self.colors['text_color'])
+            self._draw_text_wrapped(draw, name, x, y, width, height,
+                                   self.font_task, self.colors['text_color'])
     
     def _draw_start_event(self, draw: ImageDraw.ImageDraw, x: float, y: float,
                          width: float, height: float, name: str):
@@ -326,10 +326,80 @@ class BPMNRenderer:
         # Рисуем стрелку
         draw.polygon([(x2, y2), (p1_x, p1_y), (p2_x, p2_y)], fill=color)
     
+    def _draw_text_wrapped(self, draw: ImageDraw.ImageDraw, text: str,
+                          x: float, y: float, width: float, height: float,
+                          font: ImageFont.ImageFont, color: str):
+        """Рисование текста с переносом строк и масштабированием."""
+        padding = self.geometry['text_padding']
+        available_width = width - (2 * padding)
+        available_height = height - (2 * padding)
+        
+        # Разбить текст на слова
+        words = text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            line_width = bbox[2] - bbox[0]
+            
+            if line_width <= available_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+                else:
+                    # Слово слишком длинное, нужно уменьшить шрифт
+                    lines.append(word)
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Проверить, помещается ли текст по высоте
+        line_height = font.size * self.geometry['line_spacing']
+        total_height = len(lines) * line_height
+        
+        # Если не помещается, уменьшить шрифт
+        if total_height > available_height and len(lines) > 1:
+            # Уменьшить размер шрифта
+            new_size = int(font.size * (available_height / total_height) * 0.9)
+            new_size = max(6, new_size)  # Минимум 6px
+            try:
+                # Попытка загрузить шрифт меньшего размера
+                for font_path in [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/System/Library/Fonts/Helvetica.ttc",
+                    "C:\\Windows\\Fonts\\arial.ttf"
+                ]:
+                    try:
+                        font = ImageFont.truetype(font_path, new_size)
+                        break
+                    except:
+                        continue
+            except:
+                pass
+            
+            # Пересчитать line_height
+            line_height = new_size * self.geometry['line_spacing']
+        
+        # Рисовать строки
+        total_text_height = len(lines) * line_height
+        start_y = y + (height - total_text_height) / 2
+        
+        for i, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            line_width = bbox[2] - bbox[0]
+            text_x = x + (width - line_width) / 2
+            text_y = start_y + (i * line_height)
+            
+            draw.text((text_x, text_y), line, fill=self._hex_to_rgb(color), font=font)
+    
     def _draw_text_centered(self, draw: ImageDraw.ImageDraw, text: str,
                            x: float, y: float, width: float, height: float,
                            font: ImageFont.ImageFont, color: str):
-        """Рисование текста по центру области."""
+        """Рисование текста по центру области (для коротких текстов)."""
         # Получить размер текста
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
