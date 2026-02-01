@@ -1,14 +1,15 @@
 /**
- * BPMN to PNG renderer using bpmn-js and puppeteer
+ * BPMN to PNG renderer using bpmn-js and Playwright
  * Converts BPMN XML to high-quality PNG images
+ * 
+ * Playwright is used instead of Puppeteer for better Apple Silicon (M1/M2/M3) compatibility
  */
 
 const fs = require('fs');
-const path = require('path');
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');
 
 /**
- * Render BPMN XML to PNG using headless browser
+ * Render BPMN XML to PNG using Playwright
  * @param {string} bpmnXml - BPMN XML content
  * @param {object} options - Rendering options
  * @returns {Promise<Buffer>} PNG image buffer
@@ -18,20 +19,22 @@ async function renderBpmnToPng(bpmnXml, options = {}) {
     width = 2048,
     height = 2048,
     backgroundColor = '#ffffff',
-    scale = 1.0,
     padding = 20
   } = options;
 
   let browser;
   try {
-    // Launch headless browser
-    browser = await puppeteer.launch({
-      headless: 'new',
+    // Launch browser
+    browser = await chromium.launch({
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
-    const page = await browser.newPage();
-    await page.setViewport({ width, height });
+    const context = await browser.newContext({
+      viewport: { width, height }
+    });
+
+    const page = await context.newPage();
 
     // Create HTML with bpmn-js viewer
     const html = `
@@ -82,8 +85,8 @@ async function renderBpmnToPng(bpmnXml, options = {}) {
 </html>
     `;
 
-    // Load HTML
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // Set content and wait for rendering
+    await page.setContent(html, { waitUntil: 'networkidle' });
 
     // Wait for rendering to complete
     await page.waitForFunction(() => window.renderComplete || window.renderError, {
@@ -99,10 +102,10 @@ async function renderBpmnToPng(bpmnXml, options = {}) {
     // Take screenshot
     const screenshot = await page.screenshot({
       type: 'png',
-      fullPage: false,
-      omitBackground: false
+      fullPage: false
     });
 
+    await context.close();
     return screenshot;
   } finally {
     if (browser) {
@@ -119,7 +122,7 @@ async function main() {
   
   if (args.length < 2) {
     console.error('Usage: node bpmn_to_png.js <input.bpmn> <output.png> [options]');
-    console.error('Options (JSON): {"width": 2048, "height": 2048, "backgroundColor": "#ffffff", "scale": 1.0, "padding": 20}');
+    console.error('Options (JSON): {"width": 2048, "height": 2048, "backgroundColor": "#ffffff", "padding": 20}');
     process.exit(1);
   }
 

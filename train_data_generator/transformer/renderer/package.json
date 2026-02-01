@@ -1,13 +1,14 @@
 {
   "name": "bpmn-renderer",
-  "version": "1.0.0",
-  "description": "BPMN to PNG renderer using bpmn-js and puppeteer",
+  "version": "2.0.0",
+  "description": "BPMN to PNG renderer using bpmn-js and Playwright",
   "main": "bpmn_to_png.js",
   "scripts": {
-    "render": "node bpmn_to_png.js"
+    "render": "node bpmn_to_png.js",
+    "install-browsers": "npx playwright install chromium"
   },
   "dependencies": {
-    "puppeteer": "^21.0.0"
+    "playwright": "^1.40.0"
   },
   "engines": {
     "node": ">=18.0.0"
