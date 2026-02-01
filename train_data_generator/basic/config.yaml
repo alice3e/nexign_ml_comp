@@ -1,0 +1,53 @@
+# Конфигурация базового генератора BPMN диаграмм
+
+# Общие настройки
+output_dir: "./output"
+seed: null  # null для случайного, или конкретное число для воспроизводимости
+
+# Настройки генерации
+generation:
+  total_samples: 100  # Целевое количество примеров
+  language_distribution:
+    ru: 0.5  # 50% на русском
+    en: 0.5  # 50% на английском
+  
+  # Распределение паттернов
+  pattern_distribution:
+    linear: 0.15          # Линейная цепочка (базовая)
+    xor_branch: 0.15      # XOR ветвление (базовое)
+    parallel: 0.15        # Параллельность AND (базовая)
+    loop: 0.10            # Цикл
+    combined: 0.05        # Комбинированные паттерны
+    scenario_linear: 0.15 # Линейный бизнес-сценарий
+    scenario_xor: 0.15    # XOR бизнес-сценарий
+    scenario_parallel: 0.10 # Параллельный бизнес-сценарий
+  
+  # Распределение доменов для сценариев
+  domain_distribution:
+    finance: 0.25     # Финансы
+    logistics: 0.25   # Логистика
+    hr: 0.25          # HR
+    it: 0.25          # IT
+  
+  # Параметры сложности
+  complexity:
+    min_tasks: 2
+    max_tasks: 10
+    max_depth: 3  # Максимальная глубина вложенности для этапа 1
+    
+# Настройки текстового описания
+text_generation:
+  formats:
+    steps: 1.0      # 50% в формате "шаги"
+    pseudocode: 0.0 # 50% в формате "псевдокод"
+
+# Настройки координат для визуализации
+layout:
+  start_x: 100
+  start_y: 100
+  task_width: 100
+  task_height: 80
+  gateway_size: 50
+  event_size: 36
+  horizontal_spacing: 150
+  vertical_spacing: 100

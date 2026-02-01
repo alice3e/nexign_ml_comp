@@ -1,0 +1,3 @@
+# Core dependencies
+lxml>=4.9.0
+pyyaml>=6.0
