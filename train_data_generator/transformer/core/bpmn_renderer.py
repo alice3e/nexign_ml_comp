@@ -286,33 +286,74 @@ class BPMNRenderer:
     
     def _draw_edge(self, draw: ImageDraw.ImageDraw, edge: Dict[str, Any],
                    nodes: List[Dict[str, Any]], scale: float):
-        """Рендеринг связи (sequence flow)."""
-        # Найти узлы источника и цели
+        """Рендеринг связи (sequence flow) с использованием waypoints."""
+        # Найти узлы источника и цели для расчета точек на краях
         source_node = next(n for n in nodes if n['id'] == edge['source'])
         target_node = next(n for n in nodes if n['id'] == edge['target'])
         
-        # Вычислить центры узлов
+        # Рассчитать точки на краях фигур
         source_coords = source_node['coordinates']
         target_coords = target_node['coordinates']
         
-        x1 = (source_coords['x'] + source_coords['width'] / 2) * scale
-        y1 = (source_coords['y'] + source_coords['height'] / 2) * scale
-        x2 = (target_coords['x'] + target_coords['width'] / 2) * scale
-        y2 = (target_coords['y'] + target_coords['height'] / 2) * scale
+        # Центры фигур
+        source_cx = source_coords['x'] + source_coords['width'] / 2
+        source_cy = source_coords['y'] + source_coords['height'] / 2
+        target_cx = target_coords['x'] + target_coords['width'] / 2
+        target_cy = target_coords['y'] + target_coords['height'] / 2
+        
+        # Вектор направления
+        dx = target_cx - source_cx
+        dy = target_cy - source_cy
+        
+        # Точка выхода из исходной фигуры (на краю)
+        if abs(dx) > abs(dy):
+            # Горизонтальное направление
+            if dx > 0:
+                start_x = (source_coords['x'] + source_coords['width']) * scale
+                start_y = source_cy * scale
+            else:
+                start_x = source_coords['x'] * scale
+                start_y = source_cy * scale
+        else:
+            # Вертикальное направление
+            if dy > 0:
+                start_x = source_cx * scale
+                start_y = (source_coords['y'] + source_coords['height']) * scale
+            else:
+                start_x = source_cx * scale
+                start_y = source_coords['y'] * scale
+        
+        # Точка входа в целевую фигуру (на краю)
+        if abs(dx) > abs(dy):
+            # Горизонтальное направление
+            if dx > 0:
+                end_x = target_coords['x'] * scale
+                end_y = target_cy * scale
+            else:
+                end_x = (target_coords['x'] + target_coords['width']) * scale
+                end_y = target_cy * scale
+        else:
+            # Вертикальное направление
+            if dy > 0:
+                end_x = target_cx * scale
+                end_y = target_coords['y'] * scale
+            else:
+                end_x = target_cx * scale
+                end_y = (target_coords['y'] + target_coords['height']) * scale
         
         stroke_color = self._hex_to_rgb(self.colors['flow_stroke'])
         stroke_width = int(self.geometry['flow_stroke_width'])
         
-        # Линия
-        draw.line([x1, y1, x2, y2], fill=stroke_color, width=stroke_width)
+        # Линия от края к краю
+        draw.line([start_x, start_y, end_x, end_y], fill=stroke_color, width=stroke_width)
         
-        # Стрелка
-        self._draw_arrow(draw, x1, y1, x2, y2, stroke_color)
+        # Стрелка на конце
+        self._draw_arrow(draw, start_x, start_y, end_x, end_y, stroke_color)
         
         # Метка на стрелке с фоном
         if edge.get('label'):
-            mid_x = (x1 + x2) / 2
-            mid_y = (y1 + y2) / 2
+            mid_x = (start_x + end_x) / 2
+            mid_y = (start_y + end_y) / 2
             
             # Получить размер текста
             bbox = draw.textbbox((0, 0), edge['label'], font=self.font_flow)

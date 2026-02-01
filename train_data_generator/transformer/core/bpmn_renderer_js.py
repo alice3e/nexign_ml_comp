@@ -110,8 +110,7 @@ class BPMNRendererJS:
                 'width': self.style['resolution'],
                 'height': self.style['resolution'],
                 'backgroundColor': self.colors['background'],
-                'scale': 1.0,
-                'padding': 20
+                'padding': 50  # Увеличен padding для лучшего отображения
             }
             
             # Вызвать Node.js скрипт

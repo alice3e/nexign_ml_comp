@@ -206,17 +206,110 @@ class BPMNGenerator:
         flow_id_map: Dict[str, str],
         nodes: List[Dict[str, Any]]
     ):
-        """Добавление визуальной информации для связи."""
-        source_id = node_id_map[edge['source']]
-        target_id = node_id_map[edge['target']]
+        """
+        Добавление визуальной информации для связи с waypoints.
+        Waypoints рассчитываются от края к краю фигур.
+        """
         flow_id = flow_id_map[edge['id']]
         
-        # Создать edge без waypoints
-        # bpmn-js автоматически рассчитает правильные waypoints
-        # которые будут доходить до краев фигур, а не до центра
+        # Создать BPMNEdge элемент
         edge_element = etree.SubElement(
             plane,
             f"{{{self.BPMNDI_NS}}}BPMNEdge",
             id=f"{flow_id}_di",
             bpmnElement=flow_id
         )
+        
+        # Найти исходный и целевой узлы
+        source_node = next((n for n in nodes if n['id'] == edge['source']), None)
+        target_node = next((n for n in nodes if n['id'] == edge['target']), None)
+        
+        if source_node and target_node:
+            # Рассчитать waypoints от края к краю
+            start_point, end_point = self._calculate_edge_points(source_node, target_node)
+            
+            # Добавить waypoints
+            waypoint_start = etree.SubElement(
+                edge_element,
+                f"{{{self.DI_NS}}}waypoint",
+                x=str(int(start_point[0])),
+                y=str(int(start_point[1]))
+            )
+            
+            waypoint_end = etree.SubElement(
+                edge_element,
+                f"{{{self.DI_NS}}}waypoint",
+                x=str(int(end_point[0])),
+                y=str(int(end_point[1]))
+            )
+    
+    def _calculate_edge_points(
+        self,
+        source_node: Dict[str, Any],
+        target_node: Dict[str, Any]
+    ) -> tuple:
+        """
+        Рассчитать точки начала и конца связи на краях фигур.
+        
+        Args:
+            source_node: Исходный узел
+            target_node: Целевой узел
+            
+        Returns:
+            Кортеж ((start_x, start_y), (end_x, end_y))
+        """
+        # Центры фигур
+        source_cx = source_node['x'] + source_node['width'] / 2
+        source_cy = source_node['y'] + source_node['height'] / 2
+        target_cx = target_node['x'] + target_node['width'] / 2
+        target_cy = target_node['y'] + target_node['height'] / 2
+        
+        # Вектор направления
+        dx = target_cx - source_cx
+        dy = target_cy - source_cy
+        
+        # Точка выхода из исходной фигуры (правый край для горизонтальных связей)
+        if abs(dx) > abs(dy):
+            # Горизонтальное направление
+            if dx > 0:
+                # Вправо - выход справа
+                start_x = source_node['x'] + source_node['width']
+                start_y = source_cy
+            else:
+                # Влево - выход слева
+                start_x = source_node['x']
+                start_y = source_cy
+        else:
+            # Вертикальное направление
+            if dy > 0:
+                # Вниз - выход снизу
+                start_x = source_cx
+                start_y = source_node['y'] + source_node['height']
+            else:
+                # Вверх - выход сверху
+                start_x = source_cx
+                start_y = source_node['y']
+        
+        # Точка входа в целевую фигуру
+        if abs(dx) > abs(dy):
+            # Горизонтальное направление
+            if dx > 0:
+                # Справа - вход слева
+                end_x = target_node['x']
+                end_y = target_cy
+            else:
+                # Слева - вход справа
+                end_x = target_node['x'] + target_node['width']
+                end_y = target_cy
+        else:
+            # Вертикальное направление
+            if dy > 0:
+                # Снизу - вход сверху
+                end_x = target_cx
+                end_y = target_node['y']
+            else:
+                # Сверху - вход снизу
+                end_x = target_cx
+                end_y = target_node['y'] + target_node['height']
+        
+        return (start_x, start_y), (end_x, end_y)

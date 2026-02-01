@@ -109,7 +109,7 @@ class BPMNTransformer:
         style = style_gen.generate_style()
         aug_params = style_gen.generate_augmentation_params()
         
-        # Рендеринг BPMN в изображение с использованием bpmn-js (Playwright)
+        # Рендеринг BPMN в изображение с использованием bpmn-js
         renderer = BPMNRendererJS(style)
         image = renderer.render(bpmn_xml, ir_json)
         
