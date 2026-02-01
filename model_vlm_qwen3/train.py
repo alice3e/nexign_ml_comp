@@ -1,243 +1,129 @@
-'''# train_qwen3.py
 import os
 import torch
-from transformers import (
-    Qwen3VLForConditionalGeneration,
-    AutoProcessor,
-    TrainingArguments,
-    Trainer,
-)
-from peft import LoraConfig, get_peft_model, TaskType
-from dataset import BPMNDataset, collate_fn
+import streamlit as st
+from PIL import Image
+# Пытаемся импортировать класс для новых версий Qwen (2.5 и 3)
+try:
+    from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+except ImportError:
+    # Если библиотека старая, пробуем старый класс, но это может не сработать для Qwen3
+    from transformers import Qwen2VLForConditionalGeneration as Qwen2_5_VLForConditionalGeneration
+    from transformers import AutoProcessor
 
-# =========================
-# CONFIG
-# =========================
-MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
-OUTPUT_DIR = os.path.join("model_vlm_qwen3", "weights")
-DATA_DIR = "data"
+from peft import PeftModel
+from qwen_vl_utils import process_vision_info
 
-DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+# === КОНФИГУРАЦИЯ ===
+# ID модели, который ты просила
+BASE_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
 
-def train():
-    print("Using device:", DEVICE)
+# Путь к весам (сохраняем в папку model_vlm_qwen3 для порядка)
+ADAPTER_PATH = os.getenv("MODEL_PATH", os.path.join("model_vlm_qwen3", "weights"))
 
-    # 0. Processor
-    processor = AutoProcessor.from_pretrained(
-        MODEL_ID,
-        min_pixels=256*28*28,
-        max_pixels=512*28*28
-    )
-
-    # 1. Model
-    model = Qwen3VLForConditionalGeneration.from_pretrained(
-        MODEL_ID,
-        torch_dtype=torch.float16,
-    )
-
-    model.to(DEVICE)
-    model.gradient_checkpointing_enable()
-
-    # 2. LoRA
-    peft_config = LoraConfig(
-        r=16,
-        lora_alpha=16,
-        lora_dropout=0.05,
-        bias="none",
-        target_modules=[
-            "q_proj","k_proj","v_proj","o_proj",
-            "gate_proj","up_proj","down_proj"
-        ],
-        task_type=TaskType.CAUSAL_LM,
-    )
-
-    model = get_peft_model(model, peft_config)
-    model.print_trainable_parameters()
-
-    # 3. Dataset
-    train_dataset = BPMNDataset(
-        os.path.join(DATA_DIR, "train.jsonl"),
-        os.path.join(DATA_DIR, "images"),
-        MODEL_ID,
-    )
-
-    # 4. Training args (MPS safe)
-    args = TrainingArguments(
-        output_dir="checkpoints_temp",
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=4,
-        num_train_epochs=5,
-        learning_rate=2e-4,
-        logging_steps=5,
-        save_strategy="no",
-
-        fp16=True,      # 
-        bf16=False,     # 
-
-        optim="adamw_torch",
-        remove_unused_columns=False,
-        report_to="none",
-    )
-
-    trainer = Trainer(
-        model=model,
-        args=args,
-        train_dataset=train_dataset,
-        data_collator=collate_fn,
-    )
-
-    print(" Training started...")
-    trainer.train()
-
-    print(" Saving adapters + processor...")
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    model.save_pretrained(OUTPUT_DIR)
-    processor.save_pretrained(OUTPUT_DIR)
-
-    print("✅ Done.")
-
-if __name__ == "__main__":
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-    train()
-'''
-
-# train.py (modified to log params & weights to MLflow)
-import os
-import json
-import torch
-import mlflow
-from transformers import (
-    Qwen3VLForConditionalGeneration,
-    AutoProcessor,
-    TrainingArguments,
-    Trainer,
-)
-from peft import LoraConfig, get_peft_model, TaskType
-from dataset import BPMNDataset, collate_fn
-
-# =========================
-# CONFIG (можно переопределить через env/args)
-# =========================
-MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
-OUTPUT_DIR = os.path.join("model_vlm_qwen3", "weights")
-DATA_DIR = "data"
-
-DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-
-# hyperparams (пример — вынесите в argparse если нужно)
-HYPERPARAMS = {
-    "per_device_train_batch_size": 1,
-    "gradient_accumulation_steps": 4,
-    "num_train_epochs": 5,
-    "learning_rate": 2e-4,
-    "logging_steps": 5,
-    "save_strategy": "no",
-    "fp16": True,
-    "bf16": False,
-    "max_new_tokens": 384,
-    "do_sample": False,
-    "prompt_length": 512,
-    "torch_dtype": "torch.float16",
-    "min_pixels": 256 * 28 * 28,
-    "max_pixels": 512 * 28 * 28,
-    "kv_cache": True,
-    "quantize": False,
-}
-
-def train():
-    print("Using device:", DEVICE)
-
-    # optional: set experiment name
-    mlflow.set_experiment("qwen3vl-adapter-tuning")
-
-    with mlflow.start_run() as run:
-        # log params
-        mlflow.log_params(HYPERPARAMS)
-        mlflow.set_tag("base_model", MODEL_ID)
-        mlflow.set_tag("dataset", DATA_DIR)
-        mlflow.set_tag("device", str(DEVICE))
-
-        # 0. Processor
-        processor = AutoProcessor.from_pretrained(
-            MODEL_ID,
-            min_pixels=HYPERPARAMS["min_pixels"],
-            max_pixels=HYPERPARAMS["max_pixels"],
+# === ЗАГРУЗКА МОДЕЛИ ===
+@st.cache_resource
+def load_model_and_processor():
+    st.toast(f"Загрузка модели: {BASE_MODEL_ID}...", icon="⏳")
+    print(f"🔄 Загрузка {BASE_MODEL_ID} из: {ADAPTER_PATH}")
+    
+    # 1. Грузим базу
+    try:
+        # Используем bfloat16 для Mac/MPS
+        base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            BASE_MODEL_ID,
+            torch_dtype=torch.bfloat16,
+            device_map="auto"
         )
+    except OSError:
+        st.error(f"❌ Модель '{BASE_MODEL_ID}' не найдена на HuggingFace. Проверьте название или доступ.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Ошибка загрузки модели: {e}")
+        st.stop()
+    
+    # 2. Грузим адаптеры (LoRA)
+    if os.path.exists(ADAPTER_PATH):
+        try:
+            model = PeftModel.from_pretrained(base_model, ADAPTER_PATH)
+            print("✅ LoRA адаптеры подключены.")
+            st.toast("LoRA адаптеры подключены!", icon="✅")
+        except Exception as e:
+            st.error(f"Ошибка загрузки весов LoRA: {e}")
+            model = base_model
+    else:
+        st.warning(f"⚠️ Веса не найдены в {ADAPTER_PATH}. Работаем на базовой модели.")
+        model = base_model
 
-        # 1. Model
-        model = Qwen3VLForConditionalGeneration.from_pretrained(
-            MODEL_ID,
-            torch_dtype=torch.float16,
-        )
-        model.to(DEVICE)
-        model.gradient_checkpointing_enable()
+    # 3. Грузим процессор
+    try:
+        # Сначала ищем локальный процессор (если сохраняли при обучении)
+        processor = AutoProcessor.from_pretrained(ADAPTER_PATH, min_pixels=256*28*28, max_pixels=512*28*28)
+    except:
+        # Если нет — качаем из хаба
+        processor = AutoProcessor.from_pretrained(BASE_MODEL_ID, min_pixels=256*28*28, max_pixels=512*28*28)
+        
+    return model, processor
 
-        # 2. LoRA (пример)
-        peft_config = LoraConfig(
-            r=16,
-            lora_alpha=16,
-            lora_dropout=0.05,
-            bias="none",
-            target_modules=[
-                "q_proj","k_proj","v_proj","o_proj",
-                "gate_proj","up_proj","down_proj"
-            ],
-            task_type=TaskType.CAUSAL_LM,
-        )
+# === ИНТЕРФЕЙС ===
+st.set_page_config(page_title="Qwen3 BPMN", page_icon="🔮", layout="centered")
 
-        model = get_peft_model(model, peft_config)
-        model.print_trainable_parameters()
+st.title("🔮 BPMN Reader (Qwen3-VL)")
+st.caption(f"Model ID: `{BASE_MODEL_ID}`")
 
-        # 3. Dataset
-        train_dataset = BPMNDataset(
-            os.path.join(DATA_DIR, "train.jsonl"),
-            os.path.join(DATA_DIR, "images"),
-            MODEL_ID,
-        )
+# Сайдбар
+with st.sidebar:
+    st.header("Статус")
+    if os.path.exists(ADAPTER_PATH):
+        st.success(f"Fine-tuned weights detected")
+    else:
+        st.warning("Base model mode")
+    
+    st.markdown("---")
+    st.markdown("**Настройки:**")
+    # Можно добавить ползунок температуры, если нужно
+    temperature = st.slider("Temperature", 0.0, 1.0, 0.1)
 
-        # 4. Training args (MPS safe)
-        args = TrainingArguments(
-            output_dir="checkpoints_temp",
-            per_device_train_batch_size=HYPERPARAMS["per_device_train_batch_size"],
-            gradient_accumulation_steps=HYPERPARAMS["gradient_accumulation_steps"],
-            num_train_epochs=HYPERPARAMS["num_train_epochs"],
-            learning_rate=HYPERPARAMS["learning_rate"],
-            logging_steps=HYPERPARAMS["logging_steps"],
-            save_strategy=HYPERPARAMS["save_strategy"],
-            fp16=HYPERPARAMS["fp16"],
-            bf16=HYPERPARAMS["bf16"],
-            optim="adamw_torch",
-            remove_unused_columns=False,
-            report_to="none",
-        )
+# Загрузка
+uploaded_file = st.file_uploader("Загрузите диаграмму", type=["png", "jpg", "jpeg"])
 
-        trainer = Trainer(
-            model=model,
-            args=args,
-            train_dataset=train_dataset,
-            data_collator=collate_fn,
-        )
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Входное изображение", use_column_width=True)
+    
+    if st.button("✨ Генерировать описание", type="primary"):
+        with st.spinner("Анализ диаграммы..."):
+            # Загрузка (один раз)
+            model, processor = load_model_and_processor()
+            
+            # Промпт
+            prompt = "Ты эксперт по BPMN. Проанализируй диаграмму и создай Markdown таблицу с шагами алгоритма."
+            
+            messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": prompt}]}]
+            
+            text_input = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            image_inputs, video_inputs = process_vision_info(messages)
+            
+            inputs = processor(
+                text=[text_input], images=image_inputs, videos=video_inputs,
+                padding=True, return_tensors="pt"
+            ).to(model.device)
 
-        print(" Training started...")
-        trainer.train()
+            # Генерация
+            with torch.no_grad():
+                generated_ids = model.generate(
+                    **inputs, 
+                    max_new_tokens=1024, 
+                    do_sample=False if temperature == 0 else True,
+                    temperature=temperature if temperature > 0 else None
+                )
 
-        print("💾 Saving adapters + processor locally...")
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        model.save_pretrained(OUTPUT_DIR)
-        processor.save_pretrained(OUTPUT_DIR)
+            # Декодирование
+            generated_ids_trimmed = [
+                out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_text = processor.batch_decode(
+                generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )[0]
 
-        # save params snapshot for reproducibility
-        params_path = os.path.join(OUTPUT_DIR, "params.json")
-        with open(params_path, "w", encoding="utf-8") as f:
-            json.dump(HYPERPARAMS, f, indent=2)
-
-        # log weights folder as artifact (mlflow stores all files inside)
-        mlflow.log_artifacts(OUTPUT_DIR, artifact_path="weights")
-
-        # you can also log a short summary metric (if available)
-        mlflow.set_tag("weights_artifact", f"weights (run_id={run.info.run_id})")
-        print(" Done.")
-
-if __name__ == "__main__":
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-    train()
+            st.markdown("### Результат:")
+            st.markdown(output_text)

@@ -1,100 +1,133 @@
-import io
 import os
 import torch
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File
+import streamlit as st
 from PIL import Image
-from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+# В твоем примере используется Qwen3VLForConditionalGeneration. 
+# Если библиотека transformers обновлена под Qwen3, этот импорт сработает.
+# Если нет — используем фолбэк на Qwen2VL (архитектурно они совместимы).
+try:
+    from transformers import Qwen3VLForConditionalGeneration
+except ImportError:
+    from transformers import Qwen2VLForConditionalGeneration as Qwen3VLForConditionalGeneration
+
 from peft import PeftModel
-import uvicorn
+from qwen_vl_utils import process_vision_info
 
-ADAPTER_PATH = os.getenv("MODEL_PATH", os.path.join("model_vlm", "weights"))
-BASE_MODEL_ID = "Qwen/Qwen2-VL-2B-Instruct"
+# === КОНФИГУРАЦИЯ ===
+BASE_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
+# Путь к весам: берем из ENV или ищем рядом в папке weights
+ADAPTER_PATH = os.getenv("MODEL_PATH", os.path.join("model_vlm_qwen3", "weights"))
+DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
-model = None
-processor = None
+# === КЭШИРОВАНИЕ ЗАГРУЗКИ МОДЕЛИ ===
+@st.cache_resource
+def load_model_and_processor():
+    """
+    Загружает модель один раз и держит её в памяти.
+    Логика 1-в-1 как в твоем validate.py
+    """
+    print(f"🔄 Инициализация модели на устройстве: {DEVICE}")
+    print(f"📂 Адаптеры: {ADAPTER_PATH}")
 
-async def load_model():
-    global model, processor
-    print(f"🔄 Запуск сервиса...")
-    print(f"📂 Путь к весам: {ADAPTER_PATH}")
-    
-    print("⚙️ Загрузка базовой модели Qwen2-VL...")
-    base_model = Qwen2VLForConditionalGeneration.from_pretrained(
-        BASE_MODEL_ID,
-        torch_dtype=torch.bfloat16,
-        device_map="auto"
+    # 1. Процессор
+    # Пытаемся загрузить из адаптера, если там есть конфиг, иначе из базы
+    try:
+        proc = AutoProcessor.from_pretrained(ADAPTER_PATH, min_pixels=256*28*28, max_pixels=512*28*28)
+    except:
+        proc = AutoProcessor.from_pretrained(BASE_MODEL_ID, min_pixels=256*28*28, max_pixels=512*28*28)
+
+    # 2. Модель
+    # Используем float16 как в твоем примере
+    model = Qwen3VLForConditionalGeneration.from_pretrained(
+        BASE_MODEL_ID, 
+        torch_dtype=torch.float16,
+        device_map=DEVICE # Streamlit иногда лучше работает с явным device_map
     )
     
+    # 3. Адаптеры
     if os.path.exists(ADAPTER_PATH):
         try:
-            model = PeftModel.from_pretrained(base_model, ADAPTER_PATH)
-            print(f"✅ Адаптеры успешно загружены!")
+            model = PeftModel.from_pretrained(model, ADAPTER_PATH)
+            model.eval() # Режим инференса
+            print("✅ LoRA адаптеры успешно подключены")
         except Exception as e:
-            print(f"❌ Ошибка загрузки адаптеров: {e}")
-            model = base_model
+            st.error(f"Ошибка загрузки LoRA: {e}")
     else:
-        print(f"⚠️ Путь {ADAPTER_PATH} не найден. Работаем на базовой модели.")
-        model = base_model
+        print("⚠️ Адаптеры не найдены, используется базовая модель")
 
-    try:
-        processor = AutoProcessor.from_pretrained(ADAPTER_PATH, min_pixels=256*28*28, max_pixels=512*28*28)
-    except:
-        processor = AutoProcessor.from_pretrained(BASE_MODEL_ID, min_pixels=256*28*28, max_pixels=512*28*28)
-        
-    print("🚀 Сервис готов!")
+    return model, proc
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await load_model()
-    yield
+# === ИНТЕРФЕЙС ===
+st.set_page_config(page_title="Qwen3 BPMN Reader", page_icon="📊", layout="centered")
 
-app = FastAPI(title="BPMN Intelligent Service", lifespan=lifespan)
+st.title("📊 BPMN Diagram Reader")
+st.caption(f"Model: `{BASE_MODEL_ID}` | Device: `{DEVICE}`")
 
-@app.get("/")
-async def root():
-    return {"message": "BPMN Intelligent Service is running"}
+# Сайдбар с инфо
+with st.sidebar:
+    st.header("Статус системы")
+    if os.path.exists(ADAPTER_PATH):
+        st.success("🟢 Адаптеры найдены")
+    else:
+        st.warning("🟠 Режим базовой модели")
+    
+    st.info("Загрузите изображение диаграммы, чтобы получить описание алгоритма в виде таблицы.")
 
-@app.post("/predict")
-async def predict_bpmn(file: UploadFile = File(...)):
-    if not model or not processor:
-        return {"error": "Model or processor not loaded"}
-    
-    try:
-        content = await file.read()
-        image = Image.open(io.BytesIO(content)).convert("RGB")
-    except Exception as e:
-        return {"error": f"Bad image: {e}"}
-    
-    prompt = "Ты эксперт по BPMN. Твоя задача — проанализировать диаграмму и создать структурированную таблицу Markdown с шагами алгоритма."
-    
-    # Альтернативный способ без qwen_vl_utils
-    messages = [{
-        "role": "user", 
-        "content": [
-            {"type": "image", "image": image},
-            {"type": "text", "text": prompt}
-        ]
-    }]
-    
-    # Простой способ - напрямую через процессор
-    inputs = processor(
-        messages,
-        padding=True,
-        return_tensors="pt"
-    ).to(model.device)
-    
-    with torch.no_grad():
-        generated_ids = model.generate(
-            **inputs,
-            max_new_tokens=1024,
-            do_sample=False
-        )
-    
-    generated_ids_trimmed = generated_ids[:, inputs.input_ids.shape[1]:]
-    output_text = processor.decode(generated_ids_trimmed[0], skip_special_tokens=True)
-    
-    return {"description": output_text}
+# Основная область
+uploaded_file = st.file_uploader("Загрузите диаграмму (PNG, JPG)", type=["png", "jpg", "jpeg"])
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+if uploaded_file:
+    # Отображаем картинку
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Загруженная схема", use_column_width=True)
+
+    # Кнопка действия
+    if st.button("⚡ Распознать алгоритм", type="primary"):
+        with st.spinner("Анализ диаграммы..."):
+            try:
+                # Получаем модель (из кэша)
+                model, processor = load_model_and_processor()
+
+                # Промпт как в validate.py
+                PROMPT = "Ты эксперт по BPMN. Выдавай ответ строго в формате Markdown-таблицы. Заголовок таблицы должен быть точно: | № | Наименование действия | Роль |."
+
+                # Подготовка инпутов
+                messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": PROMPT}]}]
+                
+                text_input = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                image_inputs, video_inputs = process_vision_info(messages)
+                
+                inputs = processor(
+                    text=[text_input], 
+                    images=image_inputs, 
+                    videos=video_inputs,
+                    padding=True, 
+                    return_tensors="pt"
+                ).to(DEVICE)
+
+                # Генерация
+                with torch.inference_mode(): # Аналог torch.no_grad()
+                    generated_ids = model.generate(
+                        **inputs, 
+                        max_new_tokens=384, # Как в твоем validate.py
+                        do_sample=False
+                    )
+
+                # Декодирование (отрезаем промпт)
+                generated_ids_trimmed = [
+                    out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                ]
+                output_text = processor.batch_decode(
+                    generated_ids_trimmed, 
+                    skip_special_tokens=True, 
+                    clean_up_tokenization_spaces=False
+                )[0]
+
+                # Вывод результата
+                st.success("Готово!")
+                st.markdown("### Результат:")
+                st.markdown(output_text)
+            
+            except Exception as e:
+                st.error(f"Ошибка при генерации: {e}")

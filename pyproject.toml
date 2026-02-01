@@ -5,7 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "accelerate>=1.12.0",
+    "accelerate>=0.26.0",
+    "altair<5",
     "faker>=40.1.2",
     "fastapi>=0.128.0",
     "graphviz>=0.21",
@@ -19,12 +20,13 @@ dependencies = [
     "python-multipart>=0.0.22",
     "qwen-vl-utils>=0.0.14",
     "reportlab>=4.4.9",
+    "streamlit>=1.19.0",
     "svglib>=1.6.0",
     "torch>=2.10.0",
     "torchaudio>=2.10.0",
     "torchvision>=0.25.0",
     "tqdm>=4.67.1",
-    "transformers>=5.0.0",
+    "transformers>=4.49.0",
     "unicorn>=2.1.4",
     "uvicorn>=0.40.0",
 ]
