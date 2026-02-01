@@ -63,8 +63,10 @@ class BPMNGenerator:
             node_id_map[node['id']] = element_id
         
         # Добавление sequence flows
+        flow_id_map = {}
         for edge in graph['edges']:
-            self._add_sequence_flow(process, edge, node_id_map)
+            flow_id = self._add_sequence_flow(process, edge, node_id_map)
+            flow_id_map[edge['id']] = flow_id
         
         # Создание диаграммы (DI)
         diagram = etree.SubElement(
@@ -86,7 +88,7 @@ class BPMNGenerator:
         
         # Добавление визуальной информации для связей
         for edge in graph['edges']:
-            self._add_edge_shape(plane, edge, node_id_map, graph['nodes'])
+            self._add_edge_shape(plane, edge, node_id_map, flow_id_map, graph['nodes'])
         
         # Преобразование в строку
         return etree.tostring(
@@ -151,7 +153,7 @@ class BPMNGenerator:
         process: etree.Element,
         edge: Dict[str, Any],
         node_id_map: Dict[str, str]
-    ):
+    ) -> str:
         """Добавление sequence flow."""
         flow_id = self._generate_id("flow")
         source_id = node_id_map[edge['source']]
@@ -167,6 +169,8 @@ class BPMNGenerator:
         
         if edge.get('name'):
             flow.set('name', edge['name'])
+        
+        return flow_id
     
     def _add_node_shape(
         self,
@@ -199,43 +203,20 @@ class BPMNGenerator:
         plane: etree.Element,
         edge: Dict[str, Any],
         node_id_map: Dict[str, str],
+        flow_id_map: Dict[str, str],
         nodes: List[Dict[str, Any]]
     ):
         """Добавление визуальной информации для связи."""
         source_id = node_id_map[edge['source']]
         target_id = node_id_map[edge['target']]
+        flow_id = flow_id_map[edge['id']]
         
-        # Найти координаты узлов
-        source_node = next(n for n in nodes if node_id_map[n['id']] == source_id)
-        target_node = next(n for n in nodes if node_id_map[n['id']] == target_id)
-        
-        # Создать edge
+        # Создать edge без waypoints
+        # bpmn-js автоматически рассчитает правильные waypoints
+        # которые будут доходить до краев фигур, а не до центра
         edge_element = etree.SubElement(
             plane,
             f"{{{self.BPMNDI_NS}}}BPMNEdge",
-            id=f"{source_id}_{target_id}_di",
-            bpmnElement=f"flow_{self.element_counter}"
-        )
-        
-        # Добавить waypoints (упрощенно - прямая линия)
-        # Начальная точка (центр source)
-        start_x = source_node['x'] + source_node['width'] / 2
-        start_y = source_node['y'] + source_node['height'] / 2
-        
-        waypoint1 = etree.SubElement(
-            edge_element,
-            f"{{{self.DI_NS}}}waypoint",
-            x=str(start_x),
-            y=str(start_y)
-        )
-        
-        # Конечная точка (центр target)
-        end_x = target_node['x'] + target_node['width'] / 2
-        end_y = target_node['y'] + target_node['height'] / 2
-        
-        waypoint2 = etree.SubElement(
-            edge_element,
-            f"{{{self.DI_NS}}}waypoint",
-            x=str(end_x),
-            y=str(end_y)
+            id=f"{flow_id}_di",
+            bpmnElement=flow_id
         )

@@ -72,7 +72,13 @@ async function renderBpmnToPng(bpmnXml, options = {}) {
 
     viewer.importXML(bpmnXML).then(() => {
       const canvas = viewer.get('canvas');
+      
+      // Zoom to fit with padding
       canvas.zoom('fit-viewport', 'auto');
+      
+      // Get current zoom level and reduce it slightly to add padding
+      const currentZoom = canvas.zoom();
+      canvas.zoom(currentZoom * 0.95, 'auto');
       
       // Signal that rendering is complete
       window.renderComplete = true;
