@@ -299,12 +299,33 @@ class BPMNRenderer:
         # Стрелка
         self._draw_arrow(draw, x1, y1, x2, y2, stroke_color)
         
-        # Метка
+        # Метка на стрелке с фоном
         if edge.get('label'):
             mid_x = (x1 + x2) / 2
             mid_y = (y1 + y2) / 2
-            self._draw_text(draw, edge['label'], mid_x, mid_y - 10,
-                          self.font_flow, self.colors['text_color'])
+            
+            # Получить размер текста
+            bbox = draw.textbbox((0, 0), edge['label'], font=self.font_flow)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            # Добавить отступы
+            padding = 3
+            bg_x1 = mid_x - text_width / 2 - padding
+            bg_y1 = mid_y - text_height / 2 - padding
+            bg_x2 = mid_x + text_width / 2 + padding
+            bg_y2 = mid_y + text_height / 2 + padding
+            
+            # Нарисовать фон для текста (цвет фона диаграммы)
+            bg_color = self._hex_to_rgb(self.colors['background'])
+            draw.rectangle([bg_x1, bg_y1, bg_x2, bg_y2], fill=bg_color)
+            
+            # Нарисовать текст
+            text_x = mid_x - text_width / 2
+            text_y = mid_y - text_height / 2
+            draw.text((text_x, text_y), edge['label'],
+                     fill=self._hex_to_rgb(self.colors['text_color']),
+                     font=self.font_flow)
     
     def _draw_arrow(self, draw: ImageDraw.ImageDraw, x1: float, y1: float,
                    x2: float, y2: float, color: Tuple[int, int, int]):
@@ -329,19 +350,86 @@ class BPMNRenderer:
     def _draw_text_wrapped(self, draw: ImageDraw.ImageDraw, text: str,
                           x: float, y: float, width: float, height: float,
                           font: ImageFont.ImageFont, color: str):
-        """Рисование текста с переносом строк и масштабированием."""
+        """Рисование текста с переносом строк и оптимальным масштабированием."""
         padding = self.geometry['text_padding']
         available_width = width - (2 * padding)
         available_height = height - (2 * padding)
         
-        # Разбить текст на слова
+        # Целевой размер текста: 40-90% от высоты блока
+        min_text_height = available_height * 0.4
+        max_text_height = available_height * 0.9
+        
+        # Начальный размер шрифта
+        current_font = font
+        optimal_font = font
+        
+        # Попытка найти оптимальный размер шрифта
+        for font_path in [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "C:\\Windows\\Fonts\\arial.ttf"
+        ]:
+            try:
+                # Начинаем с размера, который займет ~60% высоты
+                target_size = int(available_height * 0.6 / self.geometry['line_spacing'])
+                target_size = max(8, min(target_size, 72))  # Ограничение 8-72px
+                
+                test_font = ImageFont.truetype(font_path, target_size)
+                
+                # Разбить текст на строки с этим шрифтом
+                words = text.split()
+                lines = []
+                current_line = []
+                
+                for word in words:
+                    test_line = ' '.join(current_line + [word])
+                    bbox = draw.textbbox((0, 0), test_line, font=test_font)
+                    line_width = bbox[2] - bbox[0]
+                    
+                    if line_width <= available_width:
+                        current_line.append(word)
+                    else:
+                        if current_line:
+                            lines.append(' '.join(current_line))
+                            current_line = [word]
+                        else:
+                            lines.append(word)
+                
+                if current_line:
+                    lines.append(' '.join(current_line))
+                
+                # Проверить высоту
+                line_height = target_size * self.geometry['line_spacing']
+                total_height = len(lines) * line_height
+                
+                # Если текст слишком большой, уменьшить
+                if total_height > max_text_height:
+                    scale_factor = max_text_height / total_height
+                    target_size = int(target_size * scale_factor * 0.95)
+                    target_size = max(8, target_size)
+                    test_font = ImageFont.truetype(font_path, target_size)
+                
+                # Если текст слишком маленький, увеличить
+                elif total_height < min_text_height:
+                    scale_factor = min_text_height / total_height
+                    target_size = int(target_size * scale_factor * 0.95)
+                    target_size = min(target_size, 72)
+                    test_font = ImageFont.truetype(font_path, target_size)
+                
+                optimal_font = test_font
+                break
+            except:
+                continue
+        
+        # Финальная разбивка текста с оптимальным шрифтом
         words = text.split()
         lines = []
         current_line = []
         
         for word in words:
             test_line = ' '.join(current_line + [word])
-            bbox = draw.textbbox((0, 0), test_line, font=font)
+            bbox = draw.textbbox((0, 0), test_line, font=optimal_font)
             line_width = bbox[2] - bbox[0]
             
             if line_width <= available_width:
@@ -351,50 +439,29 @@ class BPMNRenderer:
                     lines.append(' '.join(current_line))
                     current_line = [word]
                 else:
-                    # Слово слишком длинное, нужно уменьшить шрифт
                     lines.append(word)
         
         if current_line:
             lines.append(' '.join(current_line))
         
-        # Проверить, помещается ли текст по высоте
-        line_height = font.size * self.geometry['line_spacing']
-        total_height = len(lines) * line_height
+        # Получить размер шрифта
+        try:
+            font_size = optimal_font.size
+        except:
+            font_size = 12  # fallback
         
-        # Если не помещается, уменьшить шрифт
-        if total_height > available_height and len(lines) > 1:
-            # Уменьшить размер шрифта
-            new_size = int(font.size * (available_height / total_height) * 0.9)
-            new_size = max(6, new_size)  # Минимум 6px
-            try:
-                # Попытка загрузить шрифт меньшего размера
-                for font_path in [
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                    "/System/Library/Fonts/Helvetica.ttc",
-                    "C:\\Windows\\Fonts\\arial.ttf"
-                ]:
-                    try:
-                        font = ImageFont.truetype(font_path, new_size)
-                        break
-                    except:
-                        continue
-            except:
-                pass
-            
-            # Пересчитать line_height
-            line_height = new_size * self.geometry['line_spacing']
-        
-        # Рисовать строки
+        line_height = font_size * self.geometry['line_spacing']
         total_text_height = len(lines) * line_height
         start_y = y + (height - total_text_height) / 2
         
+        # Рисовать строки
         for i, line in enumerate(lines):
-            bbox = draw.textbbox((0, 0), line, font=font)
+            bbox = draw.textbbox((0, 0), line, font=optimal_font)
             line_width = bbox[2] - bbox[0]
             text_x = x + (width - line_width) / 2
             text_y = start_y + (i * line_height)
             
-            draw.text((text_x, text_y), line, fill=self._hex_to_rgb(color), font=font)
+            draw.text((text_x, text_y), line, fill=self._hex_to_rgb(color), font=optimal_font)
     
     def _draw_text_centered(self, draw: ImageDraw.ImageDraw, text: str,
                            x: float, y: float, width: float, height: float,
