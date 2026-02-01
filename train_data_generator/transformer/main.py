@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Any
 import yaml
 
-from core import BPMNRenderer, StyleGenerator, ImageAugmentor
+from core import BPMNRenderer, StyleGenerator, ImageAugmentor, BPMNParser
 
 
 class BPMNTransformer:
@@ -74,18 +74,23 @@ class BPMNTransformer:
         bpmn_path = self.input_dir / 'bpmn' / f"{sample_name}.bpmn"
         ir_path = self.input_dir / 'ir' / f"{sample_name}.json"
         desc_path = self.input_dir / 'descriptions' / f"{sample_name}.txt"
+        # Для LLM-gen описания в .md формате
+        desc_md_path = self.input_dir / 'descriptions' / f"{sample_name}.md"
         meta_path = self.input_dir / 'metadata' / f"{sample_name}_meta.json"
         
-        # Проверка существования файлов
-        if not all([bpmn_path.exists(), ir_path.exists()]):
-            raise FileNotFoundError(f"Не найдены необходимые файлы для {sample_name}")
+        # Проверка существования BPMN файла (обязательно)
+        if not bpmn_path.exists():
+            raise FileNotFoundError(f"Не найден BPMN файл для {sample_name}")
         
-        # Чтение файлов
+        # Чтение BPMN
         with open(bpmn_path, 'r', encoding='utf-8') as f:
             bpmn_xml = f.read()
         
-        with open(ir_path, 'r', encoding='utf-8') as f:
-            ir_json = json.load(f)
+        # Чтение IR если есть (для basic генератора), иначе None (для LLM-gen)
+        ir_json = None
+        if ir_path.exists():
+            with open(ir_path, 'r', encoding='utf-8') as f:
+                ir_json = json.load(f)
         
         # Извлечь seed из метаданных если есть
         seed = None
@@ -93,6 +98,11 @@ class BPMNTransformer:
             with open(meta_path, 'r', encoding='utf-8') as f:
                 metadata = json.load(f)
                 seed = metadata.get('seed')
+        
+        # Если IR нет (LLM-gen), парсим BPMN XML для извлечения координат
+        if ir_json is None:
+            parser = BPMNParser()
+            ir_json = parser.parse(bpmn_xml)
         
         # Генерация стиля
         style_gen = StyleGenerator(self.config, seed=seed)
@@ -124,14 +134,18 @@ class BPMNTransformer:
         bpmn_output_path = output_sample_dir / f"{sample_name}.bpmn"
         shutil.copy2(bpmn_path, bpmn_output_path)
         
-        # Копирование описания если есть
+        # Копирование описания если есть (.txt для basic, .md для LLM-gen)
         if desc_path.exists():
             desc_output_path = output_sample_dir / f"{sample_name}.txt"
             shutil.copy2(desc_path, desc_output_path)
+        elif desc_md_path.exists():
+            desc_output_path = output_sample_dir / f"{sample_name}.md"
+            shutil.copy2(desc_md_path, desc_output_path)
         
-        # Копирование IR
-        ir_output_path = output_sample_dir / f"{sample_name}_ir.json"
-        shutil.copy2(ir_path, ir_output_path)
+        # Копирование IR если есть (только для basic генератора)
+        if ir_json is not None and ir_path.exists():
+            ir_output_path = output_sample_dir / f"{sample_name}_ir.json"
+            shutil.copy2(ir_path, ir_output_path)
         
         # Копирование метаданных если есть
         if meta_path.exists():

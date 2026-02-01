@@ -1,7 +1,7 @@
 # Конфигурация трансформера BPMN → PNG
 
 # Входная и выходная директории
-input_dir: "../basic/output"  # Директория с выходом basic генератора
+input_dir: "../LLM-gen/output"  # Директория с выходом basic генератора
 output_dir: "./output"         # Директория для результатов
 
 # Настройки рендеринга
@@ -68,7 +68,7 @@ fonts:
     - "System Default"  # Автоматический выбор системного шрифта
   
   # Размеры шрифтов - увеличены для лучшей читаемости
-  task_name_size: [12, 14, 16]
+  task_name_size: [12, 14]
   gateway_name_size: [10, 11, 12]
   event_name_size: [9, 10, 11]
   flow_label_size: [9, 10, 11]
