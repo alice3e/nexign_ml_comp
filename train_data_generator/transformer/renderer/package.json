@@ -1,0 +1,17 @@
+{
+  "name": "bpmn-renderer",
+  "version": "1.0.0",
+  "description": "BPMN to PNG renderer using bpmn-js and puppeteer",
+  "main": "bpmn_to_png.js",
+  "scripts": {
+    "render": "node bpmn_to_png.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "",
+  "license": "MIT"
+}

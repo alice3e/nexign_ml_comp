@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Any
 import yaml
 
-from core import BPMNRenderer, StyleGenerator, ImageAugmentor, BPMNParser
+from core import BPMNRendererJS, StyleGenerator, ImageAugmentor, BPMNParser
 
 
 class BPMNTransformer:
@@ -109,8 +109,8 @@ class BPMNTransformer:
         style = style_gen.generate_style()
         aug_params = style_gen.generate_augmentation_params()
         
-        # Рендеринг BPMN в изображение
-        renderer = BPMNRenderer(style)
+        # Рендеринг BPMN в изображение с использованием bpmn-js
+        renderer = BPMNRendererJS(style)
         image = renderer.render(bpmn_xml, ir_json)
         
         # Применение аугментаций

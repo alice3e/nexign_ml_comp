@@ -4,307 +4,486 @@
              xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
              xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
              xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              id="definitions_1"
              targetNamespace="http://bpmn.io/schema/bpmn">
-  
-  <process id="process_pokupatel" isExecutable="false">
-    <startEvent id="start_pokupatel" name="Начало процесса покупки">
+
+  <collaboration id="collaboration_1">
+    <participant id="pool_1" name="Покупатель" processRef="process_1"/>
+    <participant id="pool_2" name="Система интернет-магазина" processRef="process_2"/>
+    <participant id="pool_3" name="Служба доставки" processRef="process_3"/>
+    
+    <message id="message_1" name="Заказ оформлен"/>
+    <message id="message_2" name="Уведомление о статусе заказа"/>
+    <message id="message_3" name="Информация о доставке"/>
+    <message id="message_4" name="Товар доставлен"/>
+    <message id="message_5" name="Подтверждение получения"/>
+    
+    <messageFlow id="message_flow_1" name="Отправить заказ" sourceRef="task_2" targetRef="message_catch_1"/>
+    <messageFlow id="message_flow_2" name="Уведомление покупателю" sourceRef="intermediate_throw_1" targetRef="message_catch_2"/>
+    <messageFlow id="message_flow_3" name="Данные для доставки" sourceRef="task_8" targetRef="message_catch_3"/>
+    <messageFlow id="message_flow_4" name="Уведомление о доставке" sourceRef="task_12" targetRef="message_catch_4"/>
+    <messageFlow id="message_flow_5" name="Подтверждение получения" sourceRef="task_4" targetRef="message_catch_5"/>
+  </collaboration>
+
+  <process id="process_1" name="Процесс покупателя" isExecutable="false">
+    <startEvent id="start_1" name="Начало покупки">
       <outgoing>flow_1</outgoing>
     </startEvent>
-    
-    <userTask id="task_vybor_tovarov" name="Выбор товаров и добавление в корзину">
+    <userTask id="task_1" name="Выбрать товары и добавить в корзину">
       <incoming>flow_1</incoming>
       <outgoing>flow_2</outgoing>
     </userTask>
-    
-    <userTask id="task_oformlenie_zakaza" name="Оформление заказа и указание адреса">
+    <userTask id="task_2" name="Оформить заказ и указать адрес">
       <incoming>flow_2</incoming>
       <outgoing>flow_3</outgoing>
     </userTask>
-    
-    <endEvent id="end_pokupatel" name="Завершение процесса покупки">
+    <intermediateCatchEvent id="message_catch_1" name="Ожидание проверки наличия">
+      <messageEventDefinition messageRef="message_1"/>
+      <incoming>flow_3</incoming>
+      <outgoing>flow_4</outgoing>
+    </intermediateCatchEvent>
+    <exclusiveGateway id="gateway_xor_1" name="Выбор способа оплаты" default="flow_7">
+      <incoming>flow_4</incoming>
+      <outgoing>flow_5</outgoing>
+      <outgoing>flow_7</outgoing>
+    </exclusiveGateway>
+    <userTask id="task_3" name="Оплатить онлайн">
+      <incoming>flow_5</incoming>
+      <outgoing>flow_6</outgoing>
+    </userTask>
+    <intermediateCatchEvent id="message_catch_2" name="Уведомление о создании заказа">
+      <messageEventDefinition messageRef="message_2"/>
+      <incoming>flow_6</incoming>
+      <incoming>flow_7</incoming>
+      <outgoing>flow_8</outgoing>
+    </intermediateCatchEvent>
+    <intermediateCatchEvent id="message_catch_3" name="Ожидание доставки">
+      <messageEventDefinition messageRef="message_3"/>
+      <incoming>flow_8</incoming>
+      <outgoing>flow_9</outgoing>
+    </intermediateCatchEvent>
+    <intermediateCatchEvent id="message_catch_4" name="Уведомление о доставке">
+      <messageEventDefinition messageRef="message_4"/>
+      <incoming>flow_9</incoming>
+      <outgoing>flow_10</outgoing>
+    </intermediateCatchEvent>
+    <exclusiveGateway id="gateway_xor_2" name="Проверка способа оплаты">
+      <incoming>flow_10</incoming>
+      <outgoing>flow_11</outgoing>
+      <outgoing>flow_12</outgoing>
+    </exclusiveGateway>
+    <userTask id="task_4" name="Оплатить при получении">
+      <incoming>flow_11</incoming>
+      <outgoing>flow_13</outgoing>
+    </userTask>
+    <userTask id="task_5" name="Получить товар и подтвердить">
+      <incoming>flow_12</incoming>
+      <incoming>flow_13</incoming>
+      <outgoing>flow_14</outgoing>
+    </userTask>
+    <endEvent id="end_1" name="Завершение покупки">
       <incoming>flow_14</incoming>
     </endEvent>
     
-    <userTask id="task_vybor_oplaty" name="Выбор способа оплаты">
-      <incoming>flow_6</incoming>
-      <outgoing>flow_7</outgoing>
-    </userTask>
-    
-    <userTask id="task_oplata_pri_poluchenii" name="Оплата при получении">
-      <incoming>flow_9</incoming>
-      <outgoing>flow_10</outgoing>
-    </userTask>
-    
-    <userTask id="task_podtverzhdenie_polucheniya" name="Подтверждение получения товара">
-      <incoming>flow_11</incoming>
-      <outgoing>flow_14</outgoing>
-    </userTask>
-    
-    <exclusiveGateway id="gateway_vybor_oplaty" name="Выбор способа оплаты">
-      <incoming>flow_7</incoming>
-      <outgoing>flow_8</outgoing>
-      <outgoing>flow_9</outgoing>
-    </exclusiveGateway>
-    
-    <sequenceFlow id="flow_1" sourceRef="start_pokupatel" targetRef="task_vybor_tovarov"/>
-    <sequenceFlow id="flow_2" sourceRef="task_vybor_tovarov" targetRef="task_oformlenie_zakaza"/>
-    <sequenceFlow id="flow_3" sourceRef="task_oformlenie_zakaza" targetRef="message_flow_1"/>
-    <sequenceFlow id="flow_6" sourceRef="message_flow_2" targetRef="task_vybor_oplaty"/>
-    <sequenceFlow id="flow_7" sourceRef="task_vybor_oplaty" targetRef="gateway_vybor_oplaty"/>
-    <sequenceFlow id="flow_8" sourceRef="gateway_vybor_oplaty" targetRef="message_flow_3"/>
-    <sequenceFlow id="flow_9" sourceRef="gateway_vybor_oplaty" targetRef="task_oplata_pri_poluchenii"/>
-    <sequenceFlow id="flow_10" sourceRef="task_oplata_pri_poluchenii" targetRef="message_flow_5"/>
-    <sequenceFlow id="flow_11" sourceRef="message_flow_6" targetRef="task_podtverzhdenie_polucheniya"/>
-    <sequenceFlow id="flow_14" sourceRef="task_podtverzhdenie_polucheniya" targetRef="end_pokupatel"/>
+    <sequenceFlow id="flow_1" sourceRef="start_1" targetRef="task_1"/>
+    <sequenceFlow id="flow_2" sourceRef="task_1" targetRef="task_2"/>
+    <sequenceFlow id="flow_3" sourceRef="task_2" targetRef="message_catch_1"/>
+    <sequenceFlow id="flow_4" sourceRef="message_catch_1" targetRef="gateway_xor_1"/>
+    <sequenceFlow id="flow_5" sourceRef="gateway_xor_1" targetRef="task_3" name="Оплата онлайн">
+      <conditionExpression xsi:type="tFormalExpression">способ_оплаты = 'онлайн'</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_6" sourceRef="task_3" targetRef="message_catch_2"/>
+    <sequenceFlow id="flow_7" sourceRef="gateway_xor_1" targetRef="message_catch_2" name="Оплата при получении"/>
+    <sequenceFlow id="flow_8" sourceRef="message_catch_2" targetRef="message_catch_3"/>
+    <sequenceFlow id="flow_9" sourceRef="message_catch_3" targetRef="message_catch_4"/>
+    <sequenceFlow id="flow_10" sourceRef="message_catch_4" targetRef="gateway_xor_2"/>
+    <sequenceFlow id="flow_11" sourceRef="gateway_xor_2" targetRef="task_4" name="Оплата при получении">
+      <conditionExpression xsi:type="tFormalExpression">способ_оплаты = 'при_получении'</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_12" sourceRef="gateway_xor_2" targetRef="task_5" name="Оплата онлайн"/>
+    <sequenceFlow id="flow_13" sourceRef="task_4" targetRef="task_5"/>
+    <sequenceFlow id="flow_14" sourceRef="task_5" targetRef="end_1"/>
   </process>
-  
-  <process id="process_sistema" isExecutable="false">
-    <startEvent id="start_sistema" name="Получение заказа от покупателя">
+
+  <process id="process_2" name="Процесс системы интернет-магазина" isExecutable="false">
+    <startEvent id="start_2" name="Получение заказа">
       <outgoing>flow_15</outgoing>
     </startEvent>
-    
-    <serviceTask id="task_proverka_nalichiya" name="Проверка наличия товара">
+    <intermediateCatchEvent id="message_catch_5" name="Получение заказа от покупателя">
+      <messageEventDefinition messageRef="message_1"/>
       <incoming>flow_15</incoming>
       <outgoing>flow_16</outgoing>
-    </serviceTask>
-    
-    <exclusiveGateway id="gateway_nalichie" name="Проверка наличия товара">
+    </intermediateCatchEvent>
+    <serviceTask id="task_6" name="Проверить наличие товара">
       <incoming>flow_16</incoming>
       <outgoing>flow_17</outgoing>
-      <outgoing>flow_18</outgoing>
-    </exclusiveGateway>
-    
-    <serviceTask id="task_rezerv_tovara" name="Резервирование товара">
-      <incoming>flow_17</incoming>
-      <outgoing>flow_19</outgoing>
     </serviceTask>
-    
-    <serviceTask id="task_predlozhenie_alternativ" name="Предложение альтернативных товаров">
+    <exclusiveGateway id="gateway_xor_3" name="Проверка наличия" default="flow_19">
+      <incoming>flow_17</incoming>
+      <outgoing>flow_18</outgoing>
+      <outgoing>flow_19</outgoing>
+    </exclusiveGateway>
+    <serviceTask id="task_7" name="Зарезервировать товар">
       <incoming>flow_18</incoming>
       <outgoing>flow_20</outgoing>
     </serviceTask>
-    
-    <parallelGateway id="gateway_parallel_split" name="Параллельная обработка">
-      <incoming>flow_19</incoming>
+    <userTask id="task_8" name="Создать заказ и отправить уведомление">
+      <incoming>flow_20</incoming>
       <outgoing>flow_21</outgoing>
-      <outgoing>flow_22</outgoing>
-    </parallelGateway>
-    
-    <serviceTask id="task_formirovanie_nakladnoy" name="Формирование накладной">
+    </userTask>
+    <parallelGateway id="gateway_and_1" name="Параллельная обработка">
       <incoming>flow_21</incoming>
+      <outgoing>flow_22</outgoing>
       <outgoing>flow_23</outgoing>
-    </serviceTask>
-    
-    <serviceTask id="task_otpravka_v_dostavku" name="Отправка информации в службу доставки">
+    </parallelGateway>
+    <serviceTask id="task_9" name="Сформировать накладную">
       <incoming>flow_22</incoming>
       <outgoing>flow_24</outgoing>
     </serviceTask>
-    
-    <parallelGateway id="gateway_parallel_join" name="Объединение параллельных потоков">
+    <serviceTask id="task_10" name="Отправить информацию в службу доставки">
       <incoming>flow_23</incoming>
-      <incoming>flow_24</incoming>
       <outgoing>flow_25</outgoing>
+    </serviceTask>
+    <parallelGateway id="gateway_and_2" name="Синхронизация">
+      <incoming>flow_24</incoming>
+      <incoming>flow_25</incoming>
+      <outgoing>flow_26</outgoing>
     </parallelGateway>
-    
-    <serviceTask id="task_obrabotka_platezha" name="Обработка онлайн платежа">
+    <intermediateThrowEvent id="intermediate_throw_1" name="Уведомление покупателю">
+      <messageEventDefinition messageRef="message_2"/>
       <incoming>flow_26</incoming>
       <outgoing>flow_27</outgoing>
-    </serviceTask>
-    
-    <serviceTask id="task_sozdanie_zakaza" name="Создание заказа">
-      <incoming>flow_25</incoming>
+    </intermediateThrowEvent>
+    <intermediateCatchEvent id="message_catch_6" name="Ожидание подтверждения">
+      <messageEventDefinition messageRef="message_5"/>
       <incoming>flow_27</incoming>
       <outgoing>flow_28</outgoing>
+    </intermediateCatchEvent>
+    <serviceTask id="task_11" name="Закрыть заказ">
+      <incoming>flow_28</incoming>
+      <outgoing>flow_29</outgoing>
     </serviceTask>
-    
-    <serviceTask id="task_zakrytie_zakaza" name="Закрытие заказа">
+    <endEvent id="end_2" name="Завершение обработки">
       <incoming>flow_29</incoming>
+    </endEvent>
+    <userTask id="task_12" name="Предложить альтернативы">
+      <incoming>flow_19</incoming>
       <outgoing>flow_30</outgoing>
-    </serviceTask>
-    
-    <endEvent id="end_sistema" name="Завершение обработки заказа">
+    </userTask>
+    <endEvent id="end_3" name="Завершение при отсутствии">
       <incoming>flow_30</incoming>
     </endEvent>
     
-    <intermediateThrowEvent id="event_uvedomlenie" name="Уведомление покупателя">
-      <incoming>flow_28</incoming>
-      <outgoing>flow_31</outgoing>
-    </intermediateThrowEvent>
-    
-    <sequenceFlow id="flow_15" sourceRef="start_sistema" targetRef="task_proverka_nalichiya"/>
-    <sequenceFlow id="flow_16" sourceRef="task_proverka_nalichiya" targetRef="gateway_nalichie"/>
-    <sequenceFlow id="flow_17" sourceRef="gateway_nalichie" targetRef="task_rezerv_tovara" name="Товар в наличии"/>
-    <sequenceFlow id="flow_18" sourceRef="gateway_nalichie" targetRef="task_predlozhenie_alternativ" name="Товара нет в наличии"/>
-    <sequenceFlow id="flow_19" sourceRef="task_rezerv_tovara" targetRef="gateway_parallel_split"/>
-    <sequenceFlow id="flow_20" sourceRef="task_predlozhenie_alternativ" targetRef="end_sistema"/>
-    <sequenceFlow id="flow_21" sourceRef="gateway_parallel_split" targetRef="task_formirovanie_nakladnoy"/>
-    <sequenceFlow id="flow_22" sourceRef="gateway_parallel_split" targetRef="task_otpravka_v_dostavku"/>
-    <sequenceFlow id="flow_23" sourceRef="task_formirovanie_nakladnoy" targetRef="gateway_parallel_join"/>
-    <sequenceFlow id="flow_24" sourceRef="task_otpravka_v_dostavku" targetRef="gateway_parallel_join"/>
-    <sequenceFlow id="flow_25" sourceRef="gateway_parallel_join" targetRef="task_sozdanie_zakaza"/>
-    <sequenceFlow id="flow_26" sourceRef="message_flow_4" targetRef="task_obrabotka_platezha"/>
-    <sequenceFlow id="flow_27" sourceRef="task_obrabotka_platezha" targetRef="task_sozdanie_zakaza"/>
-    <sequenceFlow id="flow_28" sourceRef="task_sozdanie_zakaza" targetRef="event_uvedomlenie"/>
-    <sequenceFlow id="flow_29" sourceRef="message_flow_7" targetRef="task_zakrytie_zakaza"/>
-    <sequenceFlow id="flow_30" sourceRef="task_zakrytie_zakaza" targetRef="end_sistema"/>
-    <sequenceFlow id="flow_31" sourceRef="event_uvedomlenie" targetRef="message_flow_2"/>
+    <sequenceFlow id="flow_15" sourceRef="start_2" targetRef="message_catch_5"/>
+    <sequenceFlow id="flow_16" sourceRef="message_catch_5" targetRef="task_6"/>
+    <sequenceFlow id="flow_17" sourceRef="task_6" targetRef="gateway_xor_3"/>
+    <sequenceFlow id="flow_18" sourceRef="gateway_xor_3" targetRef="task_7" name="Товар в наличии">
+      <conditionExpression xsi:type="tFormalExpression">наличие_товара = true</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_19" sourceRef="gateway_xor_3" targetRef="task_12" name="Товара нет в наличии"/>
+    <sequenceFlow id="flow_20" sourceRef="task_7" targetRef="task_8"/>
+    <sequenceFlow id="flow_21" sourceRef="task_8" targetRef="gateway_and_1"/>
+    <sequenceFlow id="flow_22" sourceRef="gateway_and_1" targetRef="task_9"/>
+    <sequenceFlow id="flow_23" sourceRef="gateway_and_1" targetRef="task_10"/>
+    <sequenceFlow id="flow_24" sourceRef="task_9" targetRef="gateway_and_2"/>
+    <sequenceFlow id="flow_25" sourceRef="task_10" targetRef="gateway_and_2"/>
+    <sequenceFlow id="flow_26" sourceRef="gateway_and_2" targetRef="intermediate_throw_1"/>
+    <sequenceFlow id="flow_27" sourceRef="intermediate_throw_1" targetRef="message_catch_6"/>
+    <sequenceFlow id="flow_28" sourceRef="message_catch_6" targetRef="task_11"/>
+    <sequenceFlow id="flow_29" sourceRef="task_11" targetRef="end_2"/>
+    <sequenceFlow id="flow_30" sourceRef="task_12" targetRef="end_3"/>
   </process>
-  
-  <process id="process_dostavka" isExecutable="false">
-    <startEvent id="start_dostavka" name="Получение заказа от системы">
-      <outgoing>flow_32</outgoing>
+
+  <process id="process_3" name="Процесс службы доставки" isExecutable="false">
+    <startEvent id="start_3" name="Начало доставки">
+      <outgoing>flow_31</outgoing>
     </startEvent>
-    
-    <serviceTask id="task_planirovanie_marshruta" name="Планирование маршрута доставки">
+    <intermediateCatchEvent id="message_catch_7" name="Получение заказа">
+      <messageEventDefinition messageRef="message_3"/>
+      <incoming>flow_31</incoming>
+      <outgoing>flow_32</outgoing>
+    </intermediateCatchEvent>
+    <serviceTask id="task_13" name="Планировать маршрут доставки">
       <incoming>flow_32</incoming>
       <outgoing>flow_33</outgoing>
     </serviceTask>
-    
-    <serviceTask id="task_dostavka_tovara" name="Доставка товара покупателю">
+    <userTask id="task_14" name="Доставить товар покупателю">
       <incoming>flow_33</incoming>
       <outgoing>flow_34</outgoing>
-    </serviceTask>
-    
-    <endEvent id="end_dostavka" name="Завершение доставки">
+    </userTask>
+    <intermediateThrowEvent id="intermediate_throw_2" name="Уведомление о доставке">
+      <messageEventDefinition messageRef="message_4"/>
       <incoming>flow_34</incoming>
+      <outgoing>flow_35</outgoing>
+    </intermediateThrowEvent>
+    <endEvent id="end_4" name="Завершение доставки">
+      <incoming>flow_35</incoming>
     </endEvent>
     
-    <sequenceFlow id="flow_32" sourceRef="start_dostavka" targetRef="task_planirovanie_marshruta"/>
-    <sequenceFlow id="flow_33" sourceRef="task_planirovanie_marshruta" targetRef="task_dostavka_tovara"/>
-    <sequenceFlow id="flow_34" sourceRef="task_dostavka_tovara" targetRef="end_dostavka"/>
+    <sequenceFlow id="flow_31" sourceRef="start_3" targetRef="message_catch_7"/>
+    <sequenceFlow id="flow_32" sourceRef="message_catch_7" targetRef="task_13"/>
+    <sequenceFlow id="flow_33" sourceRef="task_13" targetRef="task_14"/>
+    <sequenceFlow id="flow_34" sourceRef="task_14" targetRef="intermediate_throw_2"/>
+    <sequenceFlow id="flow_35" sourceRef="intermediate_throw_2" targetRef="end_4"/>
   </process>
-  
-  <messageFlow id="message_flow_1" sourceRef="task_oformlenie_zakaza" targetRef="start_sistema"/>
-  <messageFlow id="message_flow_2" sourceRef="event_uvedomlenie" targetRef="task_vybor_oplaty"/>
-  <messageFlow id="message_flow_3" sourceRef="gateway_vybor_oplaty" targetRef="task_obrabotka_platezha"/>
-  <messageFlow id="message_flow_4" sourceRef="gateway_vybor_oplaty" targetRef="task_obrabotka_platezha"/>
-  <messageFlow id="message_flow_5" sourceRef="task_oplata_pri_poluchenii" targetRef="task_dostavka_tovara"/>
-  <messageFlow id="message_flow_6" sourceRef="task_dostavka_tovara" targetRef="task_podtverzhdenie_polucheniya"/>
-  <messageFlow id="message_flow_7" sourceRef="task_podtverzhdenie_polucheniya" targetRef="task_zakrytie_zakaza"/>
-  
+
   <bpmndi:BPMNDiagram id="diagram_1">
-    <bpmndi:BPMNPlane id="plane_1" bpmnElement="process_1">
-      <bpmndi:BPMNShape id="shape_start_pokupatel" bpmnElement="start_pokupatel">
-        <dc:Bounds x="15" y="100" width="30" height="30"/>
+    <bpmndi:BPMNPlane id="plane_1" bpmnElement="collaboration_1">
+      <!-- Pool Shapes -->
+      <bpmndi:BPMNShape id="shape_pool_1" bpmnElement="pool_1" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="800" height="400"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_pool_2" bpmnElement="pool_2" isHorizontal="true">
+        <dc:Bounds x="0" y="400" width="800" height="400"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_pool_3" bpmnElement="pool_3" isHorizontal="true">
+        <dc:Bounds x="0" y="800" width="800" height="300"/>
       </bpmndi:BPMNShape>
       
-      <bpmndi:BPMNShape id="shape_task_vybor_tovarov" bpmnElement="task_vybor_tovarov">
-        <dc:Bounds x="80" y="75" width="100" height="80"/>
+      <!-- Process 1 Elements -->
+      <bpmndi:BPMNShape id="shape_start_1" bpmnElement="start_1">
+        <dc:Bounds x="50" y="150" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_1" bpmnElement="task_1">
+        <dc:Bounds x="120" y="128" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_2" bpmnElement="task_2">
+        <dc:Bounds x="260" y="128" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_1" bpmnElement="message_catch_1">
+        <dc:Bounds x="400" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_xor_1" bpmnElement="gateway_xor_1">
+        <dc:Bounds x="470" y="143" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_3" bpmnElement="task_3">
+        <dc:Bounds x="560" y="50" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_2" bpmnElement="message_catch_2">
+        <dc:Bounds x="700" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_3" bpmnElement="message_catch_3">
+        <dc:Bounds x="780" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_4" bpmnElement="message_catch_4">
+        <dc:Bounds x="860" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_xor_2" bpmnElement="gateway_xor_2">
+        <dc:Bounds x="930" y="143" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_4" bpmnElement="task_4">
+        <dc:Bounds x="1020" y="50" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_5" bpmnElement="task_5">
+        <dc:Bounds x="1160" y="128" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_1" bpmnElement="end_1">
+        <dc:Bounds x="1300" y="150" width="36" height="36"/>
       </bpmndi:BPMNShape>
       
-      <bpmndi:BPMNShape id="shape_task_oformlenie_zakaza" bpmnElement="task_oformlenie_zakaza">
-        <dc:Bounds x="220" y="75" width="100" height="80"/>
+      <!-- Process 2 Elements -->
+      <bpmndi:BPMNShape id="shape_start_2" bpmnElement="start_2">
+        <dc:Bounds x="50" y="550" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_5" bpmnElement="message_catch_5">
+        <dc:Bounds x="120" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_6" bpmnElement="task_6">
+        <dc:Bounds x="200" y="528" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_xor_3" bpmnElement="gateway_xor_3">
+        <dc:Bounds x="340" y="543" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_7" bpmnElement="task_7">
+        <dc:Bounds x="430" y="528" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_8" bpmnElement="task_8">
+        <dc:Bounds x="570" y="528" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_and_1" bpmnElement="gateway_and_1">
+        <dc:Bounds x="710" y="543" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_9" bpmnElement="task_9">
+        <dc:Bounds x="800" y="450" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_10" bpmnElement="task_10">
+        <dc:Bounds x="800" y="600" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_and_2" bpmnElement="gateway_and_2">
+        <dc:Bounds x="940" y="543" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_intermediate_throw_1" bpmnElement="intermediate_throw_1">
+        <dc:Bounds x="1030" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_6" bpmnElement="message_catch_6">
+        <dc:Bounds x="1100" y="552" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_11" bpmnElement="task_11">
+        <dc:Bounds x="1170" y="528" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_2" bpmnElement="end_2">
+        <dc:Bounds x="1310" y="550" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_12" bpmnElement="task_12">
+        <dc:Bounds x="430" y="650" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_3" bpmnElement="end_3">
+        <dc:Bounds x="570" y="670" width="36" height="36"/>
       </bpmndi:BPMNShape>
       
-      <bpmndi:BPMNShape id="shape_end_pokupatel" bpmnElement="end_pokupatel">
-        <dc:Bounds x="800" y="100" width="30" height="30"/>
+      <!-- Process 3 Elements -->
+      <bpmndi:BPMNShape id="shape_start_3" bpmnElement="start_3">
+        <dc:Bounds x="50" y="900" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_message_catch_7" bpmnElement="message_catch_7">
+        <dc:Bounds x="120" y="902" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_13" bpmnElement="task_13">
+        <dc:Bounds x="200" y="878" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_14" bpmnElement="task_14">
+        <dc:Bounds x="340" y="878" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_intermediate_throw_2" bpmnElement="intermediate_throw_2">
+        <dc:Bounds x="480" y="902" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_4" bpmnElement="end_4">
+        <dc:Bounds x="550" y="900" width="36" height="36"/>
       </bpmndi:BPMNShape>
       
-      <bpmndi:BPMNShape id="shape_start_sistema" bpmnElement="start_sistema">
-        <dc:Bounds x="15" y="250" width="30" height="30"/>
-      </bpmndi:BPMNShape>
+      <!-- Sequence Flows and Message Flows -->
+      <bpmndi:BPMNEdge id="edge_flow_1" bpmnElement="flow_1">
+        <di:waypoint x="86" y="168"/>
+        <di:waypoint x="120" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_2" bpmnElement="flow_2">
+        <di:waypoint x="220" y="168"/>
+        <di:waypoint x="260" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_3" bpmnElement="flow_3">
+        <di:waypoint x="360" y="168"/>
+        <di:waypoint x="400" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_4" bpmnElement="flow_4">
+        <di:waypoint x="436" y="168"/>
+        <di:waypoint x="470" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_5" bpmnElement="flow_5">
+        <di:waypoint x="495" y="143"/>
+        <di:waypoint x="495" y="90"/>
+        <di:waypoint x="560" y="90"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_6" bpmnElement="flow_6">
+        <di:waypoint x="660" y="90"/>
+        <di:waypoint x="700" y="90"/>
+        <di:waypoint x="700" y="152"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_7" bpmnElement="flow_7">
+        <di:waypoint x="495" y="193"/>
+        <di:waypoint x="495" y="240"/>
+        <di:waypoint x="700" y="240"/>
+        <di:waypoint x="700" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_8" bpmnElement="flow_8">
+        <di:waypoint x="736" y="168"/>
+        <di:waypoint x="780" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_9" bpmnElement="flow_9">
+        <di:waypoint x="816" y="168"/>
+        <di:waypoint x="860" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_10" bpmnElement="flow_10">
+        <di:waypoint x="896" y="168"/>
+        <di:waypoint x="930" y="168"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_11" bpmnElement="flow_11">
+        <di:waypoint x="955" y="143"/>
+        <di:waypoint x="955" y="90"/>
+        <di:waypoint x="1020" y="90"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_12" bpmnElement="flow_12">
+        <di:waypoint x="955" y="193"/>
+        <di:waypoint x="955" y="240"/>
+        <di:waypoint x="1160" y="240"/>
+        <di:waypoint x="1160" y="208"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_13" bpmnElement="flow_13">
+        <di:waypoint x="1120" y="90"/>
+        <di:waypoint x="1160" y="90"/>
+        <di:waypoint x="1160" y="128"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_14" bpmnElement="flow_14">
+        <di:waypoint x="1260" y="168"/>
+        <di:waypoint x="1300" y="168"/>
+      </bpmndi:BPMNEdge>
       
-      <bpmndi:BPMNShape id="shape_start_dostavka" bpmnElement="start_dostavka">
-        <dc:Bounds x="15" y="400" width="30" height="30"/>
-      </bpmndi:BPMNShape>
-      
-      <bpmndi:BPMNShape id="shape_end_sistema" bpmnElement="end_sistema">
-        <dc:Bounds x="800" y="250" width="30" height="30"/>
-      </bpmndi:BPMNShape>
-      
-      <bpmndi:BPMNShape id="shape_end_dostavka" bpmnElement="end_dostavka">
-        <dc:Bounds x="800" y="400" width="30" height="30"/>
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-  
-</definitions>
-```
-
-```markdown
-# Алгоритм: Процесс покупки товара в интернет-магазине
-
-## Пул: Покупатель
-
-### Основной поток
-
-1. START (Начало процесса покупки)
-2. Выбор товаров и добавление в корзину
-3. Оформление заказа и указание адреса
-4. Ожидание ответа от системы
-5. Выбор способа оплаты
-6. XOR_SPLIT (условие: способ оплаты)
-   - ЕСЛИ онлайн оплата:
-     7a. Отправка информации об онлайн оплате
-   - ИНАЧЕ оплата при получении:
-     7b. Оплата при получении
-8. Подтверждение получения товара
-9. END (Завершение процесса покупки)
-
-## Пул: Система интернет-магазина
-
-### Основной поток
-
-1. START (Получение заказа от покупателя)
-2. Проверка наличия товара
-3. XOR_SPLIT (условие: наличие товара)
-   - ЕСЛИ товар в наличии:
-     4a. Резервирование товара
-     5a. AND_SPLIT
-        - ПАРАЛЛЕЛЬНО:
-          6a. Формирование накладной
-          6b. Отправка информации в службу доставки
-     7a. AND_JOIN
-     8a. Ожидание способа оплаты
-     9a. XOR_SPLIT (условие: способ оплаты)
-        - ЕСЛИ онлайн оплата:
-          10a. Обработка онлайн платежа
-        - ИНАЧЕ оплата при получении:
-          10b. Пропуск обработки платежа
-     11a. Создание заказа
-     12a. Уведомление покупателя
-     13a. Ожидание подтверждения доставки
-     14a. Закрытие заказа
-   - ИНАЧЕ товара нет в наличии:
-     4b. Предложение альтернативных товаров
-5. END (Завершение обработки заказа)
-
-## Пул: Служба доставки
-
-### Основной поток
-
-1. START (Получение заказа от системы)
-2. Планирование маршрута доставки
-3. Доставка товара покупателю
-4. END (Завершение доставки)
-
-## Связи между пулами
-
-### MessageFlow связи:
-- Покупатель.Оформление заказа → Система.Получение заказа
-- Система.Уведомление → Покупатель.Выбор способа оплаты
-- Покупатель.Онлайн оплата → Система.Обработка платежа
-- Покупатель.Оплата при получении → Доставка.Доставка товара
-- Доставка.Доставка товара → Покупатель.Подтверждение получения
-- Покупатель.Подтверждение получения → Система.Закрытие заказа
-
-## Элементы
-
-### События:
-- START: start_pokupatel, start_sistema, start_dostavka
-- END: end_pokupatel, end_sistema, end_dostavka
-- Промежуточные: event_uvedomlenie
-
-### Задачи:
-- Покупатель: task_vybor_tovarov, task_oformlenie_zakaza, task_vybor_oplaty, task_oplata_pri_poluchenii, task_podtverzhdenie_polucheniya
-- Система: task_proverka_nalichiya, task_rezerv_tovara, task_predlozhenie_alternativ, task_formirovanie_nakladnoy, task_otpravka_v_dostavku, task_obrabotka_platezha, task_sozdanie_zakaza, task_zakrytie_zakaza
-- Доставка: task_planirovanie_marshruta, task_dostavka_tovara
-
-### Гейтвеи:
-- XOR: gateway_nalichie, gateway_vybor_oplaty
-- AND: gateway_parallel_split, gateway_parallel_join
-
-### MessageFlow:
-- message_flow_1 до message_flow_7
-```
+      <bpmndi:BPMNEdge id="edge_flow_15" bpmnElement="flow_15">
+        <di:waypoint x="86" y="568"/>
+        <di:waypoint x="120" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_16" bpmnElement="flow_16">
+        <di:waypoint x="156" y="568"/>
+        <di:waypoint x="200" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_17" bpmnElement="flow_17">
+        <di:waypoint x="300" y="568"/>
+        <di:waypoint x="340" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_18" bpmnElement="flow_18">
+        <di:waypoint x="365" y="543"/>
+        <di:waypoint x="365" y="528"/>
+        <di:waypoint x="430" y="528"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_19" bpmnElement="flow_19">
+        <di:waypoint x="365" y="593"/>
+        <di:waypoint x="365" y="650"/>
+        <di:waypoint x="430" y="650"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_20" bpmnElement="flow_20">
+        <di:waypoint x="530" y="568"/>
+        <di:waypoint x="570" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_21" bpmnElement="flow_21">
+        <di:waypoint x="670" y="568"/>
+        <di:waypoint x="710" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_22" bpmnElement="flow_22">
+        <di:waypoint x="735" y="543"/>
+        <di:waypoint x="735" y="490"/>
+        <di:waypoint x="800" y="490"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_23" bpmnElement="flow_23">
+        <di:waypoint x="735" y="593"/>
+        <di:waypoint x="735" y="640"/>
+        <di:waypoint x="800" y="640"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_24" bpmnElement="flow_24">
+        <di:waypoint x="900" y="490"/>
+        <di:waypoint x="940" y="490"/>
+        <di:waypoint x="940" y="543"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_25" bpmnElement="flow_25">
+        <di:waypoint x="900" y="640"/>
+        <di:waypoint x="940" y="640"/>
+        <di:waypoint x="940" y="593"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_26" bpmnElement="flow_26">
+        <di:waypoint x="990" y="568"/>
+        <di:waypoint x="1030" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_27" bpmnElement="flow_27">
+        <di:waypoint x="1066" y="568"/>
+        <di:waypoint x="1100" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_28" bpmnElement="flow_28">
+        <di:waypoint x="1136" y="568"/>
+        <di:waypoint x="1170" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_29" bpmnElement="flow_29">
+        <di:waypoint x="1270" y="568"/>
+        <di:waypoint x="1310" y="568"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_30" bpmnElement="flow_30">
+        <di:waypoint x="530" y="690"/>
+        <di:waypoint x="570" y="
