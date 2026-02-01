@@ -183,7 +183,7 @@ class BPMNRenderer:
     
     def _draw_end_event(self, draw: ImageDraw.ImageDraw, x: float, y: float,
                        width: float, height: float, name: str):
-        """Рендеринг End Event."""
+        """Рендеринг End Event с двойной обводкой (BPMN стандарт)."""
         cx = x + width / 2
         cy = y + height / 2
         radius = min(width, height) / 2
@@ -192,13 +192,23 @@ class BPMNRenderer:
         stroke_color = self._hex_to_rgb(self.colors['event_stroke'])
         stroke_width = int(self.geometry['event_stroke_width'])
         
-        # Двойной круг (толстая обводка)
+        # Внешний круг (BPMN стандарт - двойная обводка)
         draw.ellipse(
             [cx - radius, cy - radius, cx + radius, cy + radius],
             fill=fill_color,
             outline=stroke_color,
-            width=stroke_width * 2
+            width=stroke_width
         )
+        
+        # Внутренний круг (создает эффект двойной обводки)
+        inner_radius = radius - stroke_width * 2
+        if inner_radius > 0:
+            draw.ellipse(
+                [cx - inner_radius, cy - inner_radius, cx + inner_radius, cy + inner_radius],
+                fill=fill_color,
+                outline=stroke_color,
+                width=stroke_width
+            )
         
         # Текст под кругом
         if name:

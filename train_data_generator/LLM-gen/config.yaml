@@ -1,0 +1,42 @@
+# Конфигурация LLM генератора BPMN диаграмм
+
+# Общие настройки
+output_dir: "./output"
+prompts_dir: "./prompts"
+
+# Настройки API
+api:
+  model: "deepseek-v3.1-terminus"  # alice-ai-235b или deepseek-v3.1-terminus
+  temperature: 0.7
+  max_tokens: 8192
+  timeout: 300  # секунды
+
+# Настройки генерации
+generation:
+  sequential_mode: true  # Последовательная обработка (1 запрос за раз)
+  language: "ru"  # Язык промптов и ответов
+  
+  # Параметры сложности для системного промпта
+  complexity:
+    min_nodes: 10
+    max_nodes: 40
+    min_pools: 1
+    max_pools: 3
+    min_lanes: 1
+    max_lanes: 5
+    min_events: 1
+    max_events: 3
+    max_subprocess_depth: 2
+    min_message_flows: 1
+    max_message_flows: 6
+
+# Настройки валидации
+validation:
+  check_xml_structure: true
+  check_bpmn_validity: true
+  auto_fix: true  # Автоматическое исправление XML
+
+# Настройки логирования
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_file: "llm_generator.log"

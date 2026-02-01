@@ -1,0 +1,16 @@
+2026-02-01 18:14:57,030 - __main__ - INFO - Выходные директории созданы в: output
+2026-02-01 18:14:57,031 - __main__ - INFO - Системный промпт загружен
+2026-02-01 18:14:57,031 - core.eliza_client - INFO - ElizaClient инициализирован с моделью: deepseek-v3.1-terminus
+2026-02-01 18:14:57,031 - __main__ - INFO - BPMNLLMGenerator инициализирован
+2026-02-01 18:14:57,031 - __main__ - INFO - Обработка промпта: prompt_001_online_shopping.md (ID: llm_001)
+2026-02-01 18:14:57,031 - __main__ - INFO - Отправка запроса в LLM...
+2026-02-01 18:14:57,031 - core.eliza_client - INFO - Отправка запроса в модель deepseek-v3.1-terminus
+2026-02-01 18:16:16,624 - core.eliza_client - INFO - Ответ получен от модели deepseek-v3.1-terminus за 79.59 сек
+2026-02-01 18:16:16,629 - __main__ - INFO - Сырой ответ сохранен: output/raw_responses/llm_001_raw.txt
+2026-02-01 18:16:16,629 - __main__ - INFO - Парсинг ответа модели...
+2026-02-01 18:16:16,633 - core.response_parser - INFO - BPMN XML извлечен, длина: 11106 символов
+2026-02-01 18:16:16,633 - core.response_parser - INFO - Описание извлечено, длина: 2332 символов
+2026-02-01 18:16:16,634 - core.response_parser - INFO - BPMN XML прошел базовую валидацию
+2026-02-01 18:16:16,634 - __main__ - INFO - BPMN XML сохранен: output/bpmn/llm_001.bpmn
+2026-02-01 18:16:16,634 - __main__ - INFO - Описание сохранено: output/descriptions/llm_001.md
+2026-02-01 18:16:16,635 - __main__ - INFO - Метаданные сохранены: output/metadata/llm_001_meta.json
