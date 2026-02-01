@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Model weights and checkpoints
+checkpoints_temp/
+model_vlm_qwen2/weights/
+model_vlm_qwen3/weights/
+
+# Data
+data/
+raw_data/
+
+# Logs & outputs
+*.log
+*.csv
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
