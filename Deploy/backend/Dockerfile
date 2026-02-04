@@ -14,11 +14,19 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Копируем код приложения
+# Создаем директорию для базы данных
+RUN mkdir -p /app/data
+
 COPY app/ .
 
 # Переменные окружения по умолчанию
 ENV VLM_SERVICE_URL="http://vlm-inference:8002"
 ENV ADAPTER_SERVICE_URL="http://adapter:8001"
+ENV DB_PATH="/app/data/requests.db"
+
+# Volume для базы данных
+VOLUME ["/app/data"]
+
 ENV REQUEST_TIMEOUT="120"
 
 # Открываем порт

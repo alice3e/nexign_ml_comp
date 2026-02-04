@@ -15,6 +15,15 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# Импорт модуля базы данных
+from database import (
+    init_database,
+    log_inference_request,
+    get_request_by_hash,
+    get_statistics,
+    get_recent_requests
+)
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +85,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"⏱️  Request Timeout: {REQUEST_TIMEOUT}s")
     logger.info("=" * 60)
     
+    # Инициализация базы данных
+    init_database()
+    
     # Проверяем доступность сервисов
     vlm_available = await check_service_health(VLM_SERVICE_URL, "VLM Service")
     adapter_available = await check_service_health(ADAPTER_SERVICE_URL, "Adapter Service")
@@ -125,6 +137,8 @@ async def root():
             "process": "/api/v1/process (POST)",
             "health": "/health (GET)",
             "metrics": "/metrics (GET)",
+            "statistics": "/api/v1/statistics (GET)",
+            "recent": "/api/v1/recent (GET)",
             "docs": "/docs"
         }
     }
@@ -302,6 +316,9 @@ async def process_diagram(file: UploadFile = File(...)):
         
         successful_requests += 1
         
+        # Извлекаем метаданные из результата VLM
+        vlm_metadata = result.get("metadata", {})
+        
         response_data = {
             "description": result.get("description", ""),
             "metadata": {
@@ -312,27 +329,114 @@ async def process_diagram(file: UploadFile = File(...)):
                 "converted": needs_conversion,
                 "processing_time": round(processing_time, 2),
                 "timestamp": request_end.isoformat(),
-                **result.get("metadata", {})
+                **vlm_metadata
             }
         }
+        
+        # 6. Логирование в базу данных
+        conversion_time = vlm_metadata.get("conversion_time") if needs_conversion else None
+        
+        log_inference_request(
+            file_name=file.filename,
+            file_type=file_ext,
+            file_size=file_size,
+            file_hash=file_hash,
+            was_converted=needs_conversion,
+            conversion_time=conversion_time,
+            model_name=vlm_metadata.get("model", "unknown"),
+            device_type=vlm_metadata.get("device", "unknown"),
+            description=result.get("description", ""),
+            inference_time=vlm_metadata.get("inference_time", 0),
+            generation_time=vlm_metadata.get("generation_time", 0),
+            total_time=processing_time,
+            image_size=tuple(vlm_metadata.get("image_size", [])) if vlm_metadata.get("image_size") else None,
+            max_tokens=vlm_metadata.get("max_tokens"),
+            torch_dtype=vlm_metadata.get("torch_dtype"),
+            status="success",
+            metadata=vlm_metadata
+        )
         
         logger.info(f"✅ Запрос обработан успешно за {processing_time:.2f} сек")
         logger.info("=" * 60)
         
         return JSONResponse(content=response_data)
         
-    except HTTPException:
+    except HTTPException as he:
         failed_requests += 1
+        
+        # Логируем ошибку в БД
+        log_inference_request(
+            file_name=file.filename if file else "unknown",
+            file_type=file_ext if 'file_ext' in locals() else "unknown",
+            file_size=file_size if 'file_size' in locals() else 0,
+            file_hash=file_hash if 'file_hash' in locals() else "unknown",
+            was_converted=False,
+            conversion_time=None,
+            model_name="unknown",
+            device_type="unknown",
+            description="",
+            inference_time=0,
+            generation_time=0,
+            total_time=(datetime.utcnow() - request_start).total_seconds(),
+            image_size=None,
+            status="error",
+            error_message=str(he.detail)
+        )
+        
         raise
     except Exception as e:
         failed_requests += 1
         logger.error("=" * 60)
         logger.error(f"❌ Неожиданная ошибка: {e}")
         logger.error("=" * 60)
+        
+        # Логируем ошибку в БД
+        log_inference_request(
+            file_name=file.filename if file else "unknown",
+            file_type=file_ext if 'file_ext' in locals() else "unknown",
+            file_size=file_size if 'file_size' in locals() else 0,
+            file_hash=file_hash if 'file_hash' in locals() else "unknown",
+            was_converted=False,
+            conversion_time=None,
+            model_name="unknown",
+            device_type="unknown",
+            description="",
+            inference_time=0,
+            generation_time=0,
+            total_time=(datetime.utcnow() - request_start).total_seconds(),
+            image_size=None,
+            status="error",
+            error_message=str(e)
+        )
+        
         raise HTTPException(
             status_code=500,
             detail=f"Внутренняя ошибка сервера: {str(e)}"
         )
+
+
+@app.get("/api/v1/statistics")
+async def get_db_statistics():
+    """
+    Получение статистики из базы данных
+    
+    Returns:
+        Статистика по всем запросам
+    """
+    stats = get_statistics()
+    return JSONResponse(content=stats)
+
+
+@app.get("/api/v1/recent")
+async def get_recent():
+    """
+    Получение последних запросов из базы данных
+    
+    Returns:
+        Список последних 20 запросов
+    """
+    recent = get_recent_requests(limit=20)
+    return JSONResponse(content={"requests": recent})
 
 
 if __name__ == "__main__":
