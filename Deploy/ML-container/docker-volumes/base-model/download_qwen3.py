@@ -3,13 +3,13 @@ import sys
 from pathlib import Path
 
 # Включаем зеркало для ускорения загрузки (опционально)
-# os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 from huggingface_hub import snapshot_download
 
 # Конфигурация
 MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
-CACHE_DIR = os.environ.get("HF_HOME", "/root/.cache/huggingface")
+CACHE_DIR = os.environ.get("HF_HOME", "/Users/alice3e/Desktop/Work_Main/nexign/Deploy/ML-container/docker-volumes/base-model/cache")
 
 def download_model():
     """
