@@ -1,3 +1,0 @@
-# Процесс релиза программного обеспечения
-
-Разработчики завершают функционал и создают pull request, проходит code review и автоматическое тестирование (unit, integration, e2e). Параллельно QA проводит ручное тестирование и security-аудит. При обнаружении критических багов релиз откатывается на доработку. После успешных тестов создается release candidate, проводится smoke testing на staging, затем постепенный deploy на production с мониторингом метрик. Используй 5 лейнов (Dev, QA, Security, DevOps, Monitoring), подпроцесс для CI/CD pipeline, Parallel Gateway для параллельного тестирования, Error Boundary Event для обработки критических ошибок, Conditional Event для canary deployment.
