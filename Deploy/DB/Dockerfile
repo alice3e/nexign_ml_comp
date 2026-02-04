@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Метаданные
-LABEL maintainer="Backend API Service"
-LABEL description="Backend API for diagram recognition service coordination"
+LABEL maintainer="Database Service"
+LABEL description="SQLite database service for logging inference requests"
 
 # Создаем рабочую директорию
 WORKDIR /app
@@ -16,18 +16,21 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Копируем код приложения
 COPY app/ .
 
+# Создаем директорию для базы данных
+RUN mkdir -p /data
+
 # Переменные окружения по умолчанию
-ENV VLM_SERVICE_URL="http://vlm-inference:8002"
-ENV ADAPTER_SERVICE_URL="http://adapter:8001"
-ENV DB_SERVICE_URL="http://database:8003"
-ENV REQUEST_TIMEOUT="120"
+ENV DB_PATH="/data/requests.db"
+
+# Volume для базы данных
+VOLUME ["/data"]
 
 # Открываем порт
-EXPOSE 8000
+EXPOSE 8003
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health').raise_for_status()" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8003/health').raise_for_status()" || exit 1
 
 # Запуск приложения
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003", "--log-level", "info"]

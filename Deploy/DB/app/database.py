@@ -13,8 +13,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Путь к базе данных
-DB_PATH = os.getenv("DB_PATH", "/app/data/requests.db")
+# Путь к базе данных (в volume)
+DB_PATH = os.getenv("DB_PATH", "/data/requests.db")
 
 
 def init_database():

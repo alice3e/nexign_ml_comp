@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Метаданные
-LABEL maintainer="Backend API Service"
-LABEL description="Backend API for diagram recognition service coordination"
+LABEL maintainer="Frontend UI Service"
+LABEL description="Streamlit UI for diagram recognition service"
 
 # Создаем рабочую директорию
 WORKDIR /app
@@ -17,17 +17,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY app/ .
 
 # Переменные окружения по умолчанию
-ENV VLM_SERVICE_URL="http://vlm-inference:8002"
-ENV ADAPTER_SERVICE_URL="http://adapter:8001"
-ENV DB_SERVICE_URL="http://database:8003"
-ENV REQUEST_TIMEOUT="120"
+ENV BACKEND_URL="http://backend:8000"
 
-# Открываем порт
-EXPOSE 8000
+# Открываем порт Streamlit
+EXPOSE 8501
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health').raise_for_status()" || exit 1
+    CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-# Запуск приложения
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+# Запуск Streamlit
+CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

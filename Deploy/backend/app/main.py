@@ -15,14 +15,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# Импорт модуля базы данных
-from database import (
-    init_database,
-    log_inference_request,
-    get_request_by_hash,
-    get_statistics,
-    get_recent_requests
-)
+# Импорт модуля базы данных будет через HTTP запросы к DB сервису
+DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://database:8003")
 
 # Настройка логирования
 logging.basicConfig(
@@ -85,9 +79,6 @@ async def lifespan(app: FastAPI):
     logger.info(f"⏱️  Request Timeout: {REQUEST_TIMEOUT}s")
     logger.info("=" * 60)
     
-    # Инициализация базы данных
-    init_database()
-    
     # Проверяем доступность сервисов
     vlm_available = await check_service_health(VLM_SERVICE_URL, "VLM Service")
     adapter_available = await check_service_health(ADAPTER_SERVICE_URL, "Adapter Service")
@@ -137,8 +128,6 @@ async def root():
             "process": "/api/v1/process (POST)",
             "health": "/health (GET)",
             "metrics": "/metrics (GET)",
-            "statistics": "/api/v1/statistics (GET)",
-            "recent": "/api/v1/recent (GET)",
             "docs": "/docs"
         }
     }
@@ -333,28 +322,31 @@ async def process_diagram(file: UploadFile = File(...)):
             }
         }
         
-        # 6. Логирование в базу данных
-        conversion_time = vlm_metadata.get("conversion_time") if needs_conversion else None
-        
-        log_inference_request(
-            file_name=file.filename,
-            file_type=file_ext,
-            file_size=file_size,
-            file_hash=file_hash,
-            was_converted=needs_conversion,
-            conversion_time=conversion_time,
-            model_name=vlm_metadata.get("model", "unknown"),
-            device_type=vlm_metadata.get("device", "unknown"),
-            description=result.get("description", ""),
-            inference_time=vlm_metadata.get("inference_time", 0),
-            generation_time=vlm_metadata.get("generation_time", 0),
-            total_time=processing_time,
-            image_size=tuple(vlm_metadata.get("image_size", [])) if vlm_metadata.get("image_size") else None,
-            max_tokens=vlm_metadata.get("max_tokens"),
-            torch_dtype=vlm_metadata.get("torch_dtype"),
-            status="success",
-            metadata=vlm_metadata
-        )
+        # 6. Логирование в базу данных через DB сервис
+        try:
+            log_data = {
+                "file_name": file.filename,
+                "file_type": file_ext,
+                "file_size": file_size,
+                "file_hash": file_hash,
+                "was_converted": needs_conversion,
+                "conversion_time": vlm_metadata.get("conversion_time") if needs_conversion else None,
+                "model_name": vlm_metadata.get("model", "unknown"),
+                "device_type": vlm_metadata.get("device", "unknown"),
+                "description": result.get("description", ""),
+                "inference_time": vlm_metadata.get("inference_time", 0),
+                "generation_time": vlm_metadata.get("generation_time", 0),
+                "total_time": processing_time,
+                "image_size": vlm_metadata.get("image_size"),
+                "max_tokens": vlm_metadata.get("max_tokens"),
+                "torch_dtype": vlm_metadata.get("torch_dtype"),
+                "status": "success"
+            }
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(f"{DB_SERVICE_URL}/log", json=log_data)
+        except Exception as e:
+            logger.warning(f"⚠️  Не удалось залогировать в БД: {e}")
         
         logger.info(f"✅ Запрос обработан успешно за {processing_time:.2f} сек")
         logger.info("=" * 60)
@@ -364,24 +356,27 @@ async def process_diagram(file: UploadFile = File(...)):
     except HTTPException as he:
         failed_requests += 1
         
-        # Логируем ошибку в БД
-        log_inference_request(
-            file_name=file.filename if file else "unknown",
-            file_type=file_ext if 'file_ext' in locals() else "unknown",
-            file_size=file_size if 'file_size' in locals() else 0,
-            file_hash=file_hash if 'file_hash' in locals() else "unknown",
-            was_converted=False,
-            conversion_time=None,
-            model_name="unknown",
-            device_type="unknown",
-            description="",
-            inference_time=0,
-            generation_time=0,
-            total_time=(datetime.utcnow() - request_start).total_seconds(),
-            image_size=None,
-            status="error",
-            error_message=str(he.detail)
-        )
+        # Логируем ошибку в БД через DB сервис
+        try:
+            log_data = {
+                "file_name": file.filename if file else "unknown",
+                "file_type": file_ext if 'file_ext' in locals() else "unknown",
+                "file_size": file_size if 'file_size' in locals() else 0,
+                "file_hash": file_hash if 'file_hash' in locals() else "unknown",
+                "was_converted": False,
+                "model_name": "unknown",
+                "device_type": "unknown",
+                "description": "",
+                "inference_time": 0,
+                "generation_time": 0,
+                "total_time": (datetime.utcnow() - request_start).total_seconds(),
+                "status": "error",
+                "error_message": str(he.detail)
+            }
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(f"{DB_SERVICE_URL}/log", json=log_data)
+        except:
+            pass
         
         raise
     except Exception as e:
@@ -390,24 +385,27 @@ async def process_diagram(file: UploadFile = File(...)):
         logger.error(f"❌ Неожиданная ошибка: {e}")
         logger.error("=" * 60)
         
-        # Логируем ошибку в БД
-        log_inference_request(
-            file_name=file.filename if file else "unknown",
-            file_type=file_ext if 'file_ext' in locals() else "unknown",
-            file_size=file_size if 'file_size' in locals() else 0,
-            file_hash=file_hash if 'file_hash' in locals() else "unknown",
-            was_converted=False,
-            conversion_time=None,
-            model_name="unknown",
-            device_type="unknown",
-            description="",
-            inference_time=0,
-            generation_time=0,
-            total_time=(datetime.utcnow() - request_start).total_seconds(),
-            image_size=None,
-            status="error",
-            error_message=str(e)
-        )
+        # Логируем ошибку в БД через DB сервис
+        try:
+            log_data = {
+                "file_name": file.filename if file else "unknown",
+                "file_type": file_ext if 'file_ext' in locals() else "unknown",
+                "file_size": file_size if 'file_size' in locals() else 0,
+                "file_hash": file_hash if 'file_hash' in locals() else "unknown",
+                "was_converted": False,
+                "model_name": "unknown",
+                "device_type": "unknown",
+                "description": "",
+                "inference_time": 0,
+                "generation_time": 0,
+                "total_time": (datetime.utcnow() - request_start).total_seconds(),
+                "status": "error",
+                "error_message": str(e)
+            }
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(f"{DB_SERVICE_URL}/log", json=log_data)
+        except:
+            pass
         
         raise HTTPException(
             status_code=500,
@@ -418,25 +416,37 @@ async def process_diagram(file: UploadFile = File(...)):
 @app.get("/api/v1/statistics")
 async def get_db_statistics():
     """
-    Получение статистики из базы данных
+    Получение статистики из базы данных через DB сервис
     
     Returns:
         Статистика по всем запросам
     """
-    stats = get_statistics()
-    return JSONResponse(content=stats)
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{DB_SERVICE_URL}/statistics")
+            if response.status_code == 200:
+                return response.json()
+    except:
+        pass
+    return JSONResponse(content={})
 
 
 @app.get("/api/v1/recent")
 async def get_recent():
     """
-    Получение последних запросов из базы данных
+    Получение последних запросов из базы данных через DB сервис
     
     Returns:
         Список последних 20 запросов
     """
-    recent = get_recent_requests(limit=20)
-    return JSONResponse(content={"requests": recent})
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{DB_SERVICE_URL}/recent?limit=20")
+            if response.status_code == 200:
+                return response.json()
+    except:
+        pass
+    return JSONResponse(content={"requests": []})
 
 
 if __name__ == "__main__":
