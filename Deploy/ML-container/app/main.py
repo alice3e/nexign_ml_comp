@@ -121,6 +121,7 @@ def load_model_and_processor():
             logger.info("⏳ Подключение LoRA адаптеров...")
             try:
                 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
+                model = model.to(device)
                 model.eval()
                 logger.info("✅ LoRA адаптеры успешно подключены")
             except Exception as e:
