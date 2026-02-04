@@ -1,5 +1,5 @@
 # Streamlit
-streamlit==1.40.0
+streamlit>=1.54.0
 
 # HTTP requests
-requests==2.32.3
+requests>=2.32.5

@@ -22,9 +22,5 @@ ENV BACKEND_URL="http://backend:8000"
 # Открываем порт Streamlit
 EXPOSE 8501
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl --fail http://localhost:8501/_stcore/health || exit 1
-
 # Запуск Streamlit
 CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
