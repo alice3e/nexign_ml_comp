@@ -1,21 +1,21 @@
 # Core dependencies
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
+fastapi>=0.128.0
+uvicorn[standard]>=0.40.0
 python-multipart==0.0.22
 
 # ML dependencies
-torch==2.5.1
-torchvision==0.20.1
-transformers==4.49.0
-accelerate==1.2.1
-peft==0.14.0
-qwen-vl-utils==0.0.14
+torch>=2.6
+torchvision>=0.25
+transformers>=5.0.0
+accelerate>=1.12.0
+peft>=0.18
+qwen-vl-utils>=0.0.14
 
 # Image processing
-pillow==11.0.0
+pillow>=12.0.0
 
 # HuggingFace
-huggingface-hub==0.26.5
+huggingface-hub>=1.4.0
 
 # Utilities
-python-dotenv==1.0.1
+python-dotenv>=1.2.0

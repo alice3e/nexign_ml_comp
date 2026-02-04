@@ -32,6 +32,7 @@ ADAPTER_PATH = os.getenv("ADAPTER_PATH", "/app/models/weights")
 DEVICE = os.getenv("DEVICE", "cpu")
 TORCH_DTYPE = os.getenv("TORCH_DTYPE", "float16")
 MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", "384"))
+#os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 # Глобальные переменные для модели
 model = None

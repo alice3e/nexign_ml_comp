@@ -39,9 +39,5 @@ VOLUME ["/app/models/weights", "/root/.cache/huggingface"]
 # Открываем порт
 EXPOSE 8002
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8002/health').raise_for_status()" || exit 1
-
 # Запуск приложения
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--log-level", "info"]
