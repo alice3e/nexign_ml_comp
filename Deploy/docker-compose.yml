@@ -55,11 +55,18 @@ services:
       # Кэш HuggingFace для базовой модели
       - ./ML-container/docker-volumes/base-model:/root/.cache/huggingface:ro
     environment:
-      - BASE_MODEL_ID=Qwen/Qwen3-VL-2B-Instruct
+      - BASE_MODEL_ID=${BASE_MODEL_ID:-Qwen/Qwen3-VL-2B-Instruct}
       - ADAPTER_PATH=/app/models/weights
-      - DEVICE=cpu  # Измените на 'cuda' для GPU
-      - TORCH_DTYPE=float16
-      - MAX_NEW_TOKENS=384
+      - DEVICE=${DEVICE:-cpu}
+      - TORCH_DTYPE=${TORCH_DTYPE:-float16}
+      - MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-384}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - diagram-network
     healthcheck:
@@ -82,7 +89,7 @@ services:
       - VLM_SERVICE_URL=http://vlm-inference:8002
       - ADAPTER_SERVICE_URL=http://adapter:8001
       - DB_SERVICE_URL=http://database:8003
-      - REQUEST_TIMEOUT=120
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-120}
     depends_on:
       - database
       - adapter
