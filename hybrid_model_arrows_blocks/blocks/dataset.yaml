@@ -1,0 +1,14 @@
+path: hybrid_model_arrows_blocks/blocks/dataset_yolo_blocks
+train: images/train
+val: images/val
+
+# Количество классов
+nc: 5
+
+# Имена классов (порядок важен, должен совпадать с CLASS_MAP)
+names:
+  0: activity
+  1: event
+  2: gateway
+  3: oval
+  4: artifact

@@ -28,3 +28,9 @@ raw_data/
 .idea/
 .vscode/
 .DS_Store
+hybrid_model/
+Диаграммы. 2 часть
+data2/dataset_arrows
+data2/dataset_blocks
+models
+runs

@@ -1,0 +1,18 @@
+# YOLO dataset configuration
+path: hybrid_model_arrows_blocks/arrows/dataset_yolo_arrows
+train: images/train
+val: images/val
+
+# Настройки ключевых точек
+# 3 точки: [начало, изгиб/центр, конец]
+# Каждая точка: [x, y, visibility]
+kpt_shape: [3, 3]
+
+# Чтобы при отражении (fliplr) начало и конец не путались:
+# Точка 0 (начало) остается началом, точка 2 (конец) — концом.
+# Если бы мы отражали лево/право для человека, мы бы написали [1, 0, 2]
+flip_idx: [0, 1, 2] 
+
+names:
+  0: arrow
+

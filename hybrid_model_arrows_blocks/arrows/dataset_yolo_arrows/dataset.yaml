@@ -1,0 +1,8 @@
+path: /Users/lubimaya/Desktop/programming/nexign_project/hybrid_model_arrows_blocks/arrows/dataset_yolo_arrows
+train: images/train
+val: images/val
+
+# Настройки ключевых точек: теперь их 3 (старт, изгиб/центр, конец)
+kpt_shape: [3, 3]  
+names:
+  0: arrow
